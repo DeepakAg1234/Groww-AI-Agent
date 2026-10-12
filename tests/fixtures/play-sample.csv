@@ -1,0 +1,8 @@
+rating,text,date,title,user_name,profile_link,user_id,device_id
+5,Smooth onboarding and fast KYC completed without extra documents,2026-09-15,First title,Asha Reviewer,https://play.google.com/profile-asha-should-drop,user-asha-should-drop,device-asha-should-drop
+5,Smooth onboarding and fast KYC completed without extra documents,2026-09-15,Second title,Asha Reviewer,https://play.google.com/profile-asha-should-drop,user-asha-should-drop,device-asha-should-drop
+4,Withdrawal was stuck for a week,2026-01-15,Old,Ravi,https://example.com/ravi,user-ravi,device-ravi
+9,This rating is invalid,2026-09-20,Bad,Sam,https://example.com/sam,user-sam,device-sam
+5,,2026-09-20,No body,Neel,https://example.com/neel,user-neel,device-neel
+2,Email me at user@example.com or call 9876543210 about the withdrawal,2026-10-01,Help,Zara,https://example.com/zara,user-zara,aaaaaaaaaaaaaaaa
+3,Too short to keep here now,2026-09-18,Brief,Mina,https://example.com/mina,user-mina,device-mina

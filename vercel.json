@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "src/groww_pulse/web/static",
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://$PULSE_RAILWAY_HOST/api/$1",
+      "env": ["PULSE_RAILWAY_HOST"],
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": {
+            "key": "authorization"
+          },
+          "args": "Bearer $PULSE_API_TOKEN",
+          "env": ["PULSE_API_TOKEN"]
+        }
+      ]
+    }
+  ]
+}

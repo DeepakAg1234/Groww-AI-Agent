@@ -1,0 +1,15 @@
+product_name: Groww
+window_weeks: 10          # allowed: 8–12
+apps:
+  - store: play
+    app_id: com.nextbillion.groww
+    export: data/raw/play-groww.csv
+email_to: "deepakagarwal.mnit@gmail.com"  # PULSE_EMAIL_TO overrides
+doc_id: "https://docs.google.com/document/d/1M9t0njsDO7EbfGx2V-92__C__esOe-ANA7bsGujwkbQ/edit"  # PULSE_DOC_ID overrides
+doc_title_pattern: "Groww weekly pulse — {week}"  # email subject is fixed in publish; this is not sent as a Doc title
+max_themes: 5
+pulse_theme_count: 3
+quote_count: 3
+action_count: 3
+target_words: 250
+max_words: 280

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Groww weekly pulse</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --page: #F4F6F5;
+      --card: #FFFFFF;
+      --hairline: #E6EBE8;
+      --ink: #121417;
+      --secondary: #5C6560;
+      --groww: #00B386;
+      --groww-pressed: #009773;
+      --groww-tint: #E7F7F1;
+      --warning: #C2410C;
+      --warning-tint: #FDEDE6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 40px 32px;
+      background: var(--page);
+      color: var(--ink);
+      font: 15px/1.5 "Plus Jakarta Sans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    main { width: 100%; max-width: 840px; margin: 0 auto; }
+    header h1 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    header .lede { margin: 4px 0 0; color: var(--secondary); }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 200px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--secondary);
+    }
+    input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      font: 500 15px/1.4 "Plus Jakarta Sans", sans-serif;
+      text-transform: none;
+      letter-spacing: 0;
+      box-shadow: 0 1px 2px rgba(18, 20, 23, 0.04);
+    }
+    input:focus { outline: none; border-color: var(--groww); }
+    button {
+      height: 42px;
+      padding: 0 20px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--groww);
+      color: white;
+      font: 500 14px/1 "Plus Jakarta Sans", sans-serif;
+      cursor: pointer;
+    }
+    button:hover { background: var(--groww-pressed); }
+    button.secondary { background: var(--groww-tint); color: var(--groww); }
+    button.secondary:hover { background: #d6f2e8; }
+    button:disabled { opacity: 0.55; cursor: progress; }
+    #message { min-height: 1.5em; margin: 12px 0 0; color: var(--warning); }
+    .card {
+      margin-top: 24px;
+      padding: 24px;
+      background: var(--card);
+      border: 1px solid var(--hairline);
+      border-radius: 16px;
+      box-shadow: 0 2px 6px rgba(18, 20, 23, 0.02);
+    }
+    .card h2 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--secondary);
+    }
+    .run-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--hairline);
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 12px;
+      border-radius: 999px;
+      background: var(--groww-tint);
+      color: var(--groww);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .pill.warn { background: var(--warning-tint); color: var(--warning); }
+    .status-copy { margin: 0 0 20px; }
+    .fact { display: flex; align-items: baseline; gap: 0; margin-top: 12px; font-size: 14px; }
+    .fact-label { width: 140px; flex: none; color: var(--secondary); }
+    .fact-value { font-weight: 500; }
+    a { color: var(--groww); font-weight: 500; overflow-wrap: anywhere; }
+    .mono {
+      padding: 2px 8px;
+      border: 1px solid var(--hairline);
+      border-radius: 4px;
+      background: var(--page);
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      font-weight: 400;
+    }
+    .reviews-head { display: flex; align-items: center; justify-content: space-between; }
+    .kept { color: var(--secondary); font-size: 13px; font-weight: 500; }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 50px 1fr 42px;
+      gap: 16px;
+      align-items: center;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+    .bar-row span:first-child { color: var(--secondary); }
+    .bar-row span:last-child { text-align: right; font-weight: 500; }
+    .track { height: 8px; background: var(--page); border-radius: 999px; overflow: hidden; }
+    .fill { height: 100%; background: var(--groww); border-radius: 999px; }
+    .theme, .action {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 0;
+      border-top: 1px solid var(--hairline);
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .theme:first-child, .action:first-child { border-top: 0; padding-top: 4px; }
+    .theme-meta { display: flex; align-items: center; gap: 12px; color: var(--secondary); font-size: 14px; font-weight: 400; }
+    .top {
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--groww-tint);
+      color: var(--groww);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .quote { margin: 20px 0 0; padding: 2px 0 2px 16px; border-left: 3px solid var(--groww); }
+    .quote p { margin: 0; line-height: 1.6; }
+    .quote .meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+      color: var(--secondary);
+      font-size: 13px;
+      font-weight: 400;
+    }
+    .stars { color: var(--groww); letter-spacing: 0.12em; }
+    .theme-id { font-family: ui-monospace, monospace; font-size: 12px; }
+    .action { display: block; font-weight: 400; line-height: 1.6; }
+    #note { padding: 32px; }
+    #note-text {
+      margin: 16px 0 0;
+      white-space: pre-wrap;
+      font-family: Newsreader, Georgia, serif;
+      font-size: 17px;
+      font-weight: 400;
+      line-height: 1.7;
+    }
+    .empty { margin: 0; color: var(--secondary); }
+    ul { list-style: none; margin: 12px 0 0; padding: 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Groww weekly pulse</h1>
+      <p class="lede">Read a saved week, or run the pipeline and publish the note.</p>
+      <form id="controls">
+        <label>Week
+          <input id="week" name="week" list="weeks" placeholder="2026-W41" required>
+        </label>
+        <datalist id="weeks"></datalist>
+        <button type="submit" id="run">Run this week</button>
+        <button type="button" class="secondary" id="publish">Publish saved note</button>
+      </form>
+      <p id="message" role="status"></p>
+    </header>
+
+    <section id="summary" class="card" hidden>
+      <div class="run-head">
+        <h2>Run</h2>
+        <span id="status-pill" class="pill" hidden></span>
+      </div>
+      <p id="status-copy" class="status-copy"></p>
+      <div id="facts"></div>
+    </section>
+
+    <section id="volume" class="card" hidden>
+      <div class="reviews-head">
+        <h2>Reviews</h2>
+        <span id="kept" class="kept"></span>
+      </div>
+      <div id="ratings"></div>
+    </section>
+
+    <section id="themes" class="card" hidden>
+      <h2>Themes</h2>
+      <ul id="theme-list"></ul>
+    </section>
+
+    <section id="quotes" class="card" hidden>
+      <h2>Quotes</h2>
+      <ul id="quote-list"></ul>
+    </section>
+
+    <section id="actions" class="card" hidden>
+      <h2>Actions</h2>
+      <ul id="action-list"></ul>
+    </section>
+
+    <section id="note" class="card" hidden>
+      <h2>Note</h2>
+      <pre id="note-text"></pre>
+    </section>
+  </main>
+  <script>
+    const STATUS_NOTE = {
+      ready: "The job continues into publish.",
+      published: "The note is on the Doc and in the sent message.",
+      no_reviews: "The window had nothing to cluster.",
+      short_catalog: "Fewer than three themes had reviews.",
+      failed: "A model call or a grounding check failed.",
+      publish_failed: "The local note is kept. Open the authorization link, then publish the saved note."
+    };
+    const QUIET = new Set(["published", "ready"]);
+    const weekInput = document.querySelector("#week");
+    const message = document.querySelector("#message");
+    const runButton = document.querySelector("#run");
+    const publishButton = document.querySelector("#publish");
+    let token = 0;
+
+    function stars(rating) {
+      const filled = Math.max(0, Math.min(5, Number(rating) || 0));
+      return "★★★★★".slice(0, filled) + "☆☆☆☆☆".slice(0, 5 - filled);
+    }
+
+    async function readJson(response) {
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail || response.statusText);
+      }
+      return payload;
+    }
+
+    function setBusy(busy) {
+      runButton.disabled = busy;
+      publishButton.disabled = busy;
+    }
+
+    function showJob(job) {
+      if (job.state === "running") {
+        message.textContent = "Running " + job.week + "…";
+        setBusy(true);
+        return;
+      }
+      setBusy(false);
+      if (job.error) {
+        message.textContent = job.error;
+        return;
+      }
+      if (job.state === "finished") {
+        message.textContent = job.status;
+      }
+    }
+
+    function render(payload) {
+      const manifest = payload.manifest;
+      document.querySelector("#summary").hidden = false;
+      document.querySelector("#volume").hidden = false;
+      const pill = document.querySelector("#status-pill");
+      const copy = document.querySelector("#status-copy");
+      if (!manifest) {
+        pill.hidden = true;
+        copy.textContent = "No run for this week yet.";
+        copy.className = "status-copy empty";
+        document.querySelector("#facts").replaceChildren();
+      } else {
+        const status = manifest.status || "";
+        pill.hidden = !status;
+        pill.textContent = status;
+        pill.className = QUIET.has(status) ? "pill" : "pill warn";
+        copy.textContent = STATUS_NOTE[status] || "";
+        copy.className = "status-copy";
+        const facts = [
+          ["Reason", manifest.reason || "", "text"],
+          ["Window", manifest.window ? manifest.window.start + " – " + manifest.window.end : "", "text"],
+          ["Unclassified", manifest.unclassified_count == null ? "" : String(manifest.unclassified_count), "text"],
+          ["Document", manifest.doc_url || "", "link"],
+          ["Message", manifest.message_id || "", "mono"],
+          ["Authorization", manifest.authorization_url || "", "link"]
+        ];
+        const list = document.querySelector("#facts");
+        list.replaceChildren();
+        for (const [label, value, kind] of facts) {
+          if (!value) continue;
+          const row = document.createElement("div");
+          row.className = "fact";
+          const name = document.createElement("span");
+          name.className = "fact-label";
+          name.textContent = label;
+          const detail = document.createElement("span");
+          detail.className = "fact-value";
+          if (kind === "link") {
+            const link = document.createElement("a");
+            link.href = value;
+            link.textContent = value;
+            link.target = "_blank";
+            link.rel = "noreferrer";
+            detail.append(link);
+          } else if (kind === "mono") {
+            const code = document.createElement("span");
+            code.className = "mono";
+            code.textContent = value;
+            detail.append(code);
+          } else {
+            detail.textContent = value;
+          }
+          row.append(name, detail);
+          list.append(row);
+        }
+      }
+      document.querySelector("#kept").textContent = payload.kept_count + " reviews kept";
+      const ratings = payload.ratings || {};
+      const max = Math.max(1, ...Object.values(ratings).map(Number));
+      const split = document.querySelector("#ratings");
+      split.replaceChildren();
+      for (const star of ["1", "2", "3", "4", "5"]) {
+        const count = Number(ratings[star] || 0);
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        const name = document.createElement("span");
+        name.textContent = star + " star";
+        const track = document.createElement("div");
+        track.className = "track";
+        const fill = document.createElement("div");
+        fill.className = "fill";
+        fill.style.width = (count / max) * 100 + "%";
+        track.append(fill);
+        const total = document.createElement("span");
+        total.textContent = String(count);
+        row.append(name, track, total);
+        split.append(row);
+      }
+      renderThemes(payload);
+      renderQuotes(payload);
+      renderActions(payload);
+      const noteSection = document.querySelector("#note");
+      const text = payload.note || "";
+      noteSection.hidden = !text;
+      document.querySelector("#note-text").textContent = text;
+    }
+
+    function renderThemes(payload) {
+      const section = document.querySelector("#themes");
+      const catalog = payload.catalog && payload.catalog.themes;
+      const fromManifest = payload.manifest && payload.manifest.themes;
+      const themes = (catalog && catalog.length ? catalog : fromManifest) || [];
+      const top = new Set((payload.manifest && payload.manifest.top_theme_ids) || []);
+      section.hidden = themes.length === 0;
+      const list = document.querySelector("#theme-list");
+      list.replaceChildren();
+      for (const theme of themes) {
+        const item = document.createElement("li");
+        item.className = "theme";
+        const name = document.createElement("span");
+        name.textContent = theme.name || theme.id;
+        const meta = document.createElement("span");
+        meta.className = "theme-meta";
+        if (theme.review_count != null) {
+          const count = document.createElement("span");
+          count.textContent = theme.review_count + " reviews";
+          meta.append(count);
+        }
+        if (top.has(theme.id)) {
+          const mark = document.createElement("span");
+          mark.className = "top";
+          mark.textContent = "Top";
+          meta.append(mark);
+        }
+        item.append(name, meta);
+        list.append(item);
+      }
+    }
+
+    function renderQuotes(payload) {
+      const quotes = (payload.pulse && payload.pulse.quotes) || [];
+      const section = document.querySelector("#quotes");
+      section.hidden = quotes.length === 0;
+      const list = document.querySelector("#quote-list");
+      list.replaceChildren();
+      for (const quote of quotes) {
+        const item = document.createElement("li");
+        item.className = "quote";
+        const text = document.createElement("p");
+        text.textContent = quote.text || "";
+        const meta = document.createElement("p");
+        meta.className = "meta";
+        const star = document.createElement("span");
+        star.className = "stars";
+        star.textContent = stars(quote.rating);
+        const dot = document.createElement("span");
+        dot.textContent = "·";
+        const theme = document.createElement("span");
+        theme.className = "theme-id";
+        theme.textContent = quote.theme_id || "";
+        meta.append(star, dot, theme);
+        item.append(text, meta);
+        list.append(item);
+      }
+    }
+
+    function renderActions(payload) {
+      const actions = (payload.pulse && payload.pulse.actions) || [];
+      const section = document.querySelector("#actions");
+      section.hidden = actions.length === 0;
+      const list = document.querySelector("#action-list");
+      list.replaceChildren();
+      for (const action of actions) {
+        const item = document.createElement("li");
+        item.className = "action";
+        item.textContent = action.text || "";
+        list.append(item);
+      }
+    }
+
+    async function poll(week, generation) {
+      while (generation === token) {
+        const job = await readJson(await fetch("/api/weeks/" + encodeURIComponent(week) + "/job"));
+        if (generation !== token) return;
+        showJob(job);
+        if (job.state !== "running") return;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    }
+
+    async function show(week) {
+      const generation = ++token;
+      const payload = await readJson(await fetch("/api/weeks/" + encodeURIComponent(week)));
+      if (generation !== token) return;
+      render(payload);
+      const job = await readJson(await fetch("/api/weeks/" + encodeURIComponent(week) + "/job"));
+      if (generation !== token) return;
+      showJob(job);
+      if (job.state === "running") {
+        await poll(week, generation);
+        if (generation !== token) return;
+        render(await readJson(await fetch("/api/weeks/" + encodeURIComponent(week))));
+      }
+    }
+
+    document.querySelector("#controls").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const week = weekInput.value.trim();
+      message.textContent = "";
+      setBusy(true);
+      try {
+        await readJson(await fetch("/api/weeks/" + encodeURIComponent(week) + "/run", { method: "POST" }));
+        await show(week);
+      } catch (error) {
+        setBusy(false);
+        message.textContent = error.message;
+      }
+    });
+
+    publishButton.addEventListener("click", async () => {
+      const week = weekInput.value.trim();
+      message.textContent = "";
+      setBusy(true);
+      try {
+        await readJson(await fetch("/api/weeks/" + encodeURIComponent(week) + "/publish", { method: "POST" }));
+        await show(week);
+        message.textContent = "Published the saved note.";
+      } catch (error) {
+        setBusy(false);
+        message.textContent = error.message;
+      }
+    });
+
+    async function boot() {
+      const listed = await readJson(await fetch("/api/weeks"));
+      const dataList = document.querySelector("#weeks");
+      for (const item of listed.weeks) {
+        const option = document.createElement("option");
+        option.value = item.week;
+        option.label = item.week + " · " + item.status;
+        dataList.append(option);
+      }
+      if (!weekInput.value && listed.weeks.length) {
+        weekInput.value = listed.weeks[0].week;
+        await show(weekInput.value);
+      }
+    }
+
+    boot().catch((error) => {
+      message.textContent = error.message;
+    });
+  </script>
+</body>
+</html>
