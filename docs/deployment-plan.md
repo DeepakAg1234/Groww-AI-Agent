@@ -41,10 +41,10 @@ The local server refuses a public bind, and the public URLs can start a paid mod
 3. **No caching of API responses.** Send `Cache-Control: no-store` on `/api/*`. The page polls job state every 800ms. A cached `running` or `idle` snapshot would freeze the week view.
 4. **Vercel config** in `vercel.json`. The page is `src/groww_pulse/web/static`. `/api/(.*)` is proxied to `https://$PULSE_RAILWAY_HOST/api/$1`, and the route sets `Authorization: Bearer $PULSE_API_TOKEN` from the Vercel environment. The destination keeps the `/api` prefix. `PULSE_RAILWAY_HOST` is the Railway hostname only, with no `https://`.
 
-5. **Railway start.** Railpack installs `requirements.txt`, whose `.` entry installs this package. Python is 3.12 (`.python-version`). The process starts with:
+5. **Railway start.** Railpack installs the packages listed in `requirements.txt`. Python is 3.12 (`.python-version`). `PYTHONPATH=src` lets the process import `groww_pulse` from the source tree. The process starts with:
 
 ```text
-python -m groww_pulse serve --host 0.0.0.0 --port $PORT
+PYTHONPATH=src python -m groww_pulse serve --host 0.0.0.0 --port $PORT
 ```
 
 That command is the Procfile and the start command in `.railway/railway.ts`. The health check path is `/api/weeks`, the timeout is 120 seconds, and the service is one replica. A volume named `pulse-data` mounts at `/app/data`. Do not deploy a new build while a week job is `running`.
