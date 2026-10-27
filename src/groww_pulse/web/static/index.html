@@ -214,7 +214,7 @@
       line-height: 1;
       font-variant-numeric: tabular-nums;
     }
-    .of-five { display: none; margin-left: 4px; font-size: 18px; font-weight: 500; color: var(--muted); }
+    .of-five { display: none; font-size: 18px; font-weight: 500; color: var(--muted); }
     .has-rating .of-five { display: inline; }
     .caption { margin: 0; color: var(--muted); font-size: 13px; }
     .rating-note {
@@ -430,7 +430,7 @@
           <p id="kept-caption" class="caption">reviews kept</p>
         </div>
         <div class="measure">
-          <p id="blended-wrap" class="figure"><span id="blended">—</span></p>
+          <p id="blended-wrap" class="figure"><span id="blended">—</span><span class="of-five">/5</span></p>
           <div class="slot"></div>
           <p id="blended-caption" class="caption">average of issue reviews</p>
         </div>
@@ -780,12 +780,15 @@
       }
       const issues = issueRating(payload);
       const blended = document.querySelector("#blended");
+      const blendedWrap = document.querySelector("#blended-wrap");
       const blendedCaption = document.querySelector("#blended-caption");
       const ratingNote = document.querySelector("#rating-note");
       const issueAverage = issues.average;
       const keptAverage = counted ? weighted / counted : null;
       const shownAverage = issueAverage != null ? issueAverage : keptAverage;
-      blended.textContent = shownAverage != null ? shownAverage.toFixed(2) : "—";
+      const ratingText = shownAverage != null ? shownAverage.toFixed(1) + "/5" : "";
+      blended.textContent = shownAverage != null ? shownAverage.toFixed(1) : "—";
+      blendedWrap.classList.toggle("has-rating", shownAverage != null);
       blendedCaption.textContent = issueAverage != null
         ? "average of issue reviews"
         : "average of kept reviews";
@@ -798,13 +801,13 @@
           ? formatNumber(praise) + (praise === 1 ? " review that only praises the app is left out." : " reviews that only praise the app are left out.")
           : "Praise with no product issue is left out.";
         ratingNote.hidden = false;
-        ratingNote.textContent = "Not the Play Store rating. " + shownAverage.toFixed(2)
+        ratingNote.textContent = "Not the Play Store rating. " + ratingText
           + " is the average of " + formatNumber(issues.count)
           + (issues.count === 1 ? " review that describes a product issue. " : " reviews that describe a product issue. ")
           + sentence;
       } else {
         ratingNote.hidden = false;
-        ratingNote.textContent = "Not the Play Store rating. " + shownAverage.toFixed(2)
+        ratingNote.textContent = "Not the Play Store rating. " + ratingText
           + " is the average of reviews kept in this run.";
       }
       const lowFigure = document.querySelector("#low-figure");
@@ -865,8 +868,12 @@
       title.textContent = count
         ? count + (count === 1 ? " week of reviews" : " weeks of reviews")
         : (week || "Weekly pulse");
-      runName.hidden = !week;
-      runName.textContent = week ? "Run " + week : "";
+      const named = /^(\d{4})-W(\d{2})$/.exec(week);
+      runName.hidden = !named || !count;
+      runName.textContent = named && count
+        ? "Last " + count + (count === 1 ? " week" : " weeks")
+          + " till Week " + Number(named[2]) + " of the year " + named[1]
+        : "";
       windowLine.hidden = false;
       windowLine.textContent = formatDay(windowValue.start) + " – " + formatDay(windowValue.end);
       span.hidden = count === 0;
