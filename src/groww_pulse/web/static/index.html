@@ -6,335 +6,463 @@
   <title>Groww weekly pulse</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --page: #F4F6F5;
-      --card: #FFFFFF;
-      --hairline: #E6EBE8;
-      --ink: #121417;
-      --secondary: #5C6560;
-      --groww: #00B386;
-      --groww-pressed: #009773;
-      --groww-tint: #E7F7F1;
-      --warning: #C2410C;
-      --warning-tint: #FDEDE6;
+      --page: #F3F6F4;
+      --ink: #17241E;
+      --muted: #4A564F;
+      --line: #D5DED8;
+      --groww: #0A6B45;
+      --groww-pressed: #085539;
+      --wash: #E6F3EC;
+      --pain: #9A3412;
+      --white: #FFFFFF;
     }
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
       min-height: 100vh;
-      padding: 40px 32px;
       background: var(--page);
       color: var(--ink);
-      font: 15px/1.5 "Plus Jakarta Sans", sans-serif;
+      font: 15px/1.5 Outfit, "Segoe UI", sans-serif;
       -webkit-font-smoothing: antialiased;
     }
-    main { width: 100%; max-width: 840px; margin: 0 auto; }
-    header h1 {
-      margin: 0;
-      font-size: 32px;
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+    :focus { outline: none; }
+    :focus-visible {
+      outline: 2px solid var(--groww);
+      outline-offset: 2px;
+    }
+    .skip {
+      position: absolute;
+      left: 12px;
+      top: -48px;
+      z-index: 2;
+      padding: 8px 12px;
+      background: var(--white);
+      color: var(--ink);
+      border-radius: 8px;
+    }
+    .skip:focus { top: 12px; }
+    .app {
+      display: grid;
+      grid-template-columns: 252px minmax(0, 1fr);
+      align-items: start;
+      min-height: 100vh;
+    }
+    .rail {
+      position: sticky;
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 24px 18px 20px;
+      overflow: auto;
+      border-right: 1px solid var(--line);
+    }
+    .mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--ink);
       font-weight: 600;
       letter-spacing: -0.02em;
-      line-height: 1.2;
+      text-decoration: none;
     }
-    header .lede { margin: 4px 0 0; color: var(--secondary); }
+    .mark-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      background: var(--groww);
+    }
+    nav { display: flex; flex-direction: column; gap: 2px; margin-top: 28px; }
+    nav a {
+      padding: 8px 10px;
+      border-radius: 8px;
+      color: var(--ink);
+      font-weight: 500;
+      text-decoration: none;
+    }
+    nav a:hover { background: rgba(255, 255, 255, 0.72); }
+    nav a[aria-current="true"] { background: var(--white); box-shadow: inset 0 0 0 1px var(--line); }
     form {
       display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      gap: 12px;
-      margin-top: 24px;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 28px;
     }
     label {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      width: 200px;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--secondary);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
     }
     input {
       width: 100%;
-      padding: 10px 14px;
-      border: 1px solid var(--hairline);
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
       border-radius: 8px;
-      background: white;
+      background: var(--white);
       color: var(--ink);
-      font: 500 15px/1.4 "Plus Jakarta Sans", sans-serif;
-      text-transform: none;
-      letter-spacing: 0;
-      box-shadow: 0 1px 2px rgba(18, 20, 23, 0.04);
+      font: 500 14px/1 Outfit, "Segoe UI", sans-serif;
     }
-    input:focus { outline: none; border-color: var(--groww); }
-    button {
-      height: 42px;
-      padding: 0 20px;
-      border: 0;
+    input:focus-visible { border-color: var(--groww); }
+    button, .next-action, #doc-link, #copy-note {
+      border: 1px solid transparent;
       border-radius: 8px;
-      background: var(--groww);
-      color: white;
-      font: 500 14px/1 "Plus Jakarta Sans", sans-serif;
+      font: 600 14px/1 Outfit, "Segoe UI", sans-serif;
       cursor: pointer;
     }
-    button:hover { background: var(--groww-pressed); }
-    button.secondary { background: var(--groww-tint); color: var(--groww); }
-    button.secondary:hover { background: #d6f2e8; }
-    button:disabled { opacity: 0.55; cursor: progress; }
-    #message {
-      min-height: 1.5em;
-      margin: 12px 0 0;
-      color: var(--secondary);
-    }
-    #message.problem { color: var(--warning); font-weight: 600; }
-    .activity {
-      margin: 16px 0 0;
-      padding: 10px 14px;
-      border-radius: 8px;
-      background: var(--groww-tint);
-      color: var(--groww-pressed);
-      font-weight: 600;
-    }
-    .card {
-      margin-top: 16px;
-      padding: 24px;
-      background: var(--card);
-      border: 1px solid var(--hairline);
-      border-radius: 16px;
-      box-shadow: 0 2px 6px rgba(18, 20, 23, 0.02);
-    }
-    .card h2 {
-      margin: 0;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--secondary);
-    }
-    .run-head {
-      display: flex;
+    #run, #publish, .next-action {
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding-bottom: 16px;
-      margin-bottom: 16px;
-      border-bottom: 1px solid var(--hairline);
+      justify-content: center;
+      min-height: 40px;
+      padding: 8px 12px;
+      text-align: center;
+      text-decoration: none;
     }
-    .week-shown {
+    #run { background: var(--groww); color: var(--white); }
+    #run:hover { background: var(--groww-pressed); }
+    #publish, .next-action {
+      background: var(--white);
+      color: var(--ink);
+      border-color: var(--line);
+    }
+    #publish:hover, .next-action:hover { background: #F7FAF8; }
+    button:disabled { opacity: 0.55; cursor: progress; }
+    #message, #activity, .next-copy, .next-url { margin: 0; }
+    #message { min-height: 1.25em; color: var(--muted); font-size: 13px; }
+    #message.problem, .caption.problem { color: var(--pain); font-weight: 600; }
+    .activity { color: var(--groww); font-size: 13px; font-weight: 600; }
+    .next-block { display: flex; flex-direction: column; gap: 6px; }
+    .next-copy { font-size: 13px; font-weight: 600; }
+    .next-url { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    main { padding: 32px 40px 72px; max-width: 1180px; }
+    h1 {
       margin: 0;
-      font-size: 20px;
+      font-size: 34px;
       font-weight: 600;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
     }
+    .window { margin: 8px 0 0; color: var(--muted); }
+    .status-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    #status-copy { margin: 0; }
+    #status-copy.empty { color: var(--muted); }
+    .reason { margin: 8px 0 0; max-width: 62ch; }
     .pill {
       display: inline-flex;
       align-items: center;
-      padding: 2px 12px;
+      padding: 2px 10px;
       border-radius: 999px;
-      background: var(--groww-tint);
+      background: var(--wash);
       color: var(--groww);
       font-size: 13px;
       font-weight: 600;
     }
-    .pill.neutral { background: var(--page); color: var(--secondary); }
-    .pill.warn { background: var(--warning-tint); color: var(--warning); }
-    .status-copy { margin: 0; }
-    .reason { margin: 8px 0 0; color: var(--secondary); }
-    .next-block { margin-top: 16px; }
-    .next-action {
-      display: inline-flex;
-      align-items: center;
-      min-height: 42px;
-      padding: 8px 16px;
-      border-radius: 8px;
-      background: var(--groww);
-      color: white;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .next-action:hover { background: var(--groww-pressed); }
-    .next-copy { margin: 16px 0 0; font-weight: 600; }
-    .next-url {
-      margin: 8px 0 0;
-      color: var(--secondary);
-      font-size: 13px;
-      overflow-wrap: anywhere;
-    }
-    .fact { display: flex; align-items: baseline; gap: 12px; margin-top: 12px; font-size: 14px; }
-    .fact-label { width: 140px; flex: none; color: var(--secondary); }
-    .fact-value { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
-    a { color: var(--groww); font-weight: 500; overflow-wrap: anywhere; }
-    .mono {
-      padding: 2px 8px;
-      border: 1px solid var(--hairline);
-      border-radius: 4px;
-      background: var(--page);
-      font-family: ui-monospace, monospace;
-      font-size: 13px;
-      font-weight: 400;
-    }
-    .reviews-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .kept { color: var(--secondary); font-size: 13px; font-weight: 500; }
-    .bar-row {
+    .pill.neutral { background: #E7ECE9; color: var(--muted); }
+    .pill.warn { background: #F8EBE3; color: var(--pain); }
+    .measures {
       display: grid;
-      grid-template-columns: 50px 1fr 42px;
+      grid-template-columns: 1fr 1fr 1.25fr 1fr;
+      margin-top: 32px;
+    }
+    .measure {
+      display: grid;
+      grid-template-rows: auto 8px auto;
+      row-gap: 10px;
+      align-content: start;
+      min-width: 0;
+      padding: 2px 0 2px 22px;
+      border-left: 1px solid var(--line);
+    }
+    .measure:first-child { padding-left: 0; border-left: 0; }
+    .figure {
+      margin: 0;
+      font-size: 36px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .of-five { display: none; margin-left: 4px; font-size: 18px; font-weight: 500; color: var(--muted); }
+    .has-rating .of-five { display: inline; }
+    .caption { margin: 0; color: var(--muted); font-size: 13px; }
+    .stack {
+      display: flex;
+      gap: 2px;
+      width: 100%;
+      height: 8px;
+    }
+    .stack span {
+      display: block;
+      flex-basis: 0;
+      height: 100%;
+      border-radius: 99px;
+      background: var(--groww);
+    }
+    .stack .low { background: var(--pain); }
+    #week-shown, #themes, #note, #quotes, #checks { scroll-margin-top: 24px; }
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(240px, 0.85fr);
+      gap: 36px;
+      align-items: start;
+      margin-top: 40px;
+    }
+    .split:has(.side[hidden]) { grid-template-columns: minmax(0, 1fr); }
+    .split:not(:has(#themes:not([hidden]))) .side { padding-left: 0; border-left: 0; }
+    .side { padding-left: 28px; border-left: 1px solid var(--line); }
+    .side section + section { margin-top: 32px; }
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .section-note, #check-score { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    .section-head #check-score { margin: 0; }
+    ol, ul { list-style: none; margin: 14px 0 0; padding: 0; }
+    .theme {
+      display: grid;
+      grid-template-columns: 2rem minmax(0, 1fr);
+      column-gap: 12px;
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+    .theme.pain { box-shadow: inset 3px 0 0 var(--pain); padding-left: 12px; }
+    .rank {
+      padding-top: 2px;
+      color: var(--muted);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .theme-name { font-weight: 600; letter-spacing: -0.01em; }
+    .theme-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 16px;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .in-note { color: var(--groww); font-weight: 600; }
+    .theme-extra { margin: 6px 0 0; max-width: 62ch; font-size: 14px; line-height: 1.5; }
+    .theme-extra.definition { color: var(--muted); }
+    .fact {
+      display: flex;
+      justify-content: space-between;
       gap: 16px;
-      align-items: center;
-      margin-top: 14px;
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
       font-size: 14px;
     }
-    .bar-row span:first-child { color: var(--secondary); }
-    .bar-row span:last-child { text-align: right; font-weight: 500; }
-    .track { height: 8px; background: var(--page); border-radius: 999px; overflow: hidden; }
-    .fill { height: 100%; background: var(--groww); border-radius: 999px; }
-    .theme, .action {
-      padding: 14px 0;
-      border-top: 1px solid var(--hairline);
-      font-size: 15px;
-    }
-    .theme:first-child, .action:first-child, .check:first-child { border-top: 0; padding-top: 4px; }
-    .theme-row, .check-row {
+    .fact-label { color: var(--muted); }
+    .fact-value { font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+    .check { padding: 10px 0; border-top: 1px solid var(--line); }
+    .check-row, .note-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
     }
-    .theme-name { font-weight: 500; }
-    .theme-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--secondary); font-size: 14px; }
-    .theme-extra { margin: 6px 0 0; color: var(--secondary); font-size: 14px; line-height: 1.5; }
-    .top {
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: var(--groww-tint);
-      color: var(--groww);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-    .quote { margin: 0; padding: 16px 0 16px 16px; border-top: 1px solid var(--hairline); border-left: 3px solid var(--groww); }
-    .quote:first-child { border-top: 0; }
-    .quote p { margin: 0; line-height: 1.6; }
-    .quote .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      margin-top: 6px;
-      color: var(--secondary);
-      font-size: 13px;
-      font-weight: 400;
-    }
-    .stars { color: var(--groww); letter-spacing: 0.12em; }
-    .theme-id, .check-rule { font-family: ui-monospace, monospace; font-size: 12px; }
-    .action { font-weight: 400; line-height: 1.6; }
-    .action-theme { display: block; margin-top: 4px; color: var(--secondary); font-family: ui-monospace, monospace; font-size: 12px; }
-    .check { padding: 12px 0; border-top: 1px solid var(--hairline); }
     .check.pass .check-state { color: var(--groww); font-weight: 600; }
-    .check.fail .check-state { color: var(--warning); font-weight: 600; }
-    .check-detail { margin: 6px 0 0; color: var(--ink); }
-    #note {
-      margin-top: 16px;
-      padding: 32px;
-      border-top: 4px solid var(--groww);
+    .check.fail .check-state { color: var(--pain); font-weight: 600; }
+    .check-detail { margin: 6px 0 0; font-size: 14px; }
+    .action { padding: 12px 0; border-top: 1px solid var(--line); line-height: 1.5; }
+    .action-theme { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+    #note { margin-top: 48px; padding-top: 8px; max-width: 68ch; }
+    .note-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    #copy-note, #doc-link {
+      display: inline-flex;
+      align-items: center;
+      height: 34px;
+      padding: 0 12px;
+      background: var(--white);
+      color: var(--ink);
+      border-color: var(--line);
+      text-decoration: none;
     }
-    .note-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    #copy-note:hover, #doc-link:hover { background: #F7FAF8; }
     #note-text {
       margin: 16px 0 0;
       white-space: pre-wrap;
       font-family: Newsreader, Georgia, serif;
-      font-size: 18px;
+      font-size: 19px;
       font-weight: 400;
-      line-height: 1.7;
+      line-height: 1.65;
     }
-    .empty { margin: 0; color: var(--secondary); }
-    ul { list-style: none; margin: 12px 0 0; padding: 0; }
-    @media (max-width: 640px) {
-      body { padding: 24px 16px; }
-      header h1 { font-size: 28px; }
-      form { flex-direction: column; align-items: stretch; }
-      label, button, .next-action { width: 100%; }
-      .next-action { justify-content: center; }
-      .run-head, .note-head, .theme-row, .reviews-head { align-items: flex-start; flex-direction: column; }
-      .fact { flex-direction: column; gap: 2px; }
-      .fact-label { width: auto; }
-      #note { padding: 20px; }
-      .bar-row { grid-template-columns: 52px minmax(0, 1fr) 32px; gap: 8px; }
+    #quotes { margin-top: 40px; }
+    .quote { max-width: 68ch; padding: 16px 0; border-top: 1px solid var(--line); }
+    .quote p { margin: 0; line-height: 1.55; }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .stars { letter-spacing: 0.08em; color: var(--ink); }
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .rail {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      form { margin-top: 20px; }
+      nav { flex-direction: row; gap: 4px; margin-top: 16px; overflow: auto; }
+      nav a { white-space: nowrap; }
+      main { padding: 24px 16px 48px; }
+      h1 { font-size: 28px; }
+      .measures { grid-template-columns: 1fr 1fr; }
+      .measure { padding: 16px 0 16px 16px; }
+      .measure:nth-child(odd) { padding-left: 0; border-left: 0; }
+      .measure:nth-child(n + 3) { border-top: 1px solid var(--line); }
+      .split { grid-template-columns: 1fr; gap: 28px; }
+      .side {
+        padding-left: 0;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        padding-top: 28px;
+      }
+    }
+    @media (max-width: 520px) {
+      .measures { grid-template-columns: 1fr; }
+      .measure { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+      .measure:first-child { border-top: 0; }
+      .figure { font-size: 32px; }
     }
   </style>
 </head>
 <body>
-  <main>
-    <header>
-      <h1>Groww weekly pulse</h1>
-      <p class="lede">Read a saved week, or run the pipeline and publish the note.</p>
+  <a class="skip" href="#week-shown">Skip to this week</a>
+  <div class="app">
+    <aside class="rail">
+      <a class="mark" href="#week-shown">
+        <span class="mark-swatch" aria-hidden="true"></span>
+        Groww pulse
+      </a>
+      <nav aria-label="Sections">
+        <a href="#week-shown" aria-current="true">This week</a>
+        <a href="#themes">Themes</a>
+        <a href="#note">Note</a>
+        <a href="#quotes">Quotes</a>
+        <a href="#checks">Checks</a>
+      </nav>
       <form id="controls">
         <label>Week
           <input id="week" name="week" list="weeks" placeholder="2026-W41" required>
         </label>
         <datalist id="weeks"></datalist>
         <button type="submit" id="run">Run this week</button>
-        <button type="button" class="secondary" id="publish">Publish saved note</button>
+        <button type="button" id="publish">Publish saved note</button>
+        <div id="next"></div>
+        <p id="message" role="status"></p>
+        <p id="activity" class="activity" hidden></p>
       </form>
-      <p id="message" role="status"></p>
-      <p id="activity" class="activity" hidden></p>
-    </header>
+    </aside>
+    <main>
+      <header>
+        <h1 id="week-shown">Weekly pulse</h1>
+        <p id="window-line" class="window" hidden></p>
+        <div class="status-line">
+          <span id="status-pill" class="pill" hidden></span>
+          <p id="status-copy">Read a saved week, or run the pipeline and publish the note.</p>
+        </div>
+        <p id="reason" class="reason" hidden></p>
+      </header>
 
-    <section id="summary" class="card" hidden>
-      <div class="run-head">
-        <p id="week-shown" class="week-shown"></p>
-        <span id="status-pill" class="pill" hidden></span>
+      <section class="measures" aria-label="This week at a glance">
+        <div class="measure">
+          <p id="kept-figure" class="figure">—</p>
+          <div class="slot"></div>
+          <p id="kept-caption" class="caption">reviews kept</p>
+        </div>
+        <div class="measure">
+          <p id="blended-wrap" class="figure"><span id="blended">—</span><span class="of-five"> / 5</span></p>
+          <div class="slot"></div>
+          <p id="blended-caption" class="caption">average of kept reviews</p>
+        </div>
+        <div class="measure">
+          <p id="low-figure" class="figure">—</p>
+          <div id="ratings" class="stack"></div>
+          <p id="split-caption" class="caption">No ratings yet</p>
+        </div>
+        <div class="measure">
+          <p id="words" class="figure">—</p>
+          <div class="slot"></div>
+          <p id="words-caption" class="caption">words, 280 is the limit</p>
+        </div>
+      </section>
+
+      <div class="split">
+        <section id="themes" hidden>
+          <div class="section-head">
+            <h2>Themes</h2>
+          </div>
+          <p class="section-note">Ranked by review count, then by a lower average.</p>
+          <ol id="theme-list"></ol>
+        </section>
+        <div class="side">
+          <section id="record" hidden>
+            <h2>This run</h2>
+            <div id="facts"></div>
+          </section>
+          <section id="checks" hidden>
+            <div class="section-head">
+              <h2>Checks</h2>
+              <p id="check-score"></p>
+            </div>
+            <ul id="check-list"></ul>
+          </section>
+          <section id="actions" hidden>
+            <h2>Actions</h2>
+            <ul id="action-list"></ul>
+          </section>
+        </div>
       </div>
-      <p id="status-copy" class="status-copy"></p>
-      <p id="reason" class="reason" hidden></p>
-      <div id="next"></div>
-    </section>
 
-    <section id="note" class="card" hidden>
-      <div class="note-head">
-        <h2>Note</h2>
-        <a id="doc-link" hidden target="_blank" rel="noreferrer">Open document</a>
-      </div>
-      <pre id="note-text"></pre>
-    </section>
+      <section id="note" hidden>
+        <div class="note-head">
+          <h2>Note</h2>
+          <div class="note-actions">
+            <button type="button" id="copy-note">Copy note</button>
+            <a id="doc-link" hidden target="_blank" rel="noreferrer">Open document</a>
+          </div>
+        </div>
+        <pre id="note-text"></pre>
+      </section>
 
-    <section id="checks" class="card" hidden>
-      <h2>Checks</h2>
-      <ul id="check-list"></ul>
-    </section>
-
-    <section id="record" class="card" hidden>
-      <h2>Run record</h2>
-      <div id="facts"></div>
-    </section>
-
-    <section id="volume" class="card" hidden>
-      <div class="reviews-head">
-        <h2>Reviews</h2>
-        <span id="kept" class="kept"></span>
-      </div>
-      <div id="ratings"></div>
-    </section>
-
-    <section id="themes" class="card" hidden>
-      <h2>Themes</h2>
-      <ul id="theme-list"></ul>
-    </section>
-
-    <section id="quotes" class="card" hidden>
-      <h2>Quotes</h2>
-      <ul id="quote-list"></ul>
-    </section>
-
-    <section id="actions" class="card" hidden>
-      <h2>Actions</h2>
-      <ul id="action-list"></ul>
-    </section>
-  </main>
+      <section id="quotes" hidden>
+        <h2>Quotes</h2>
+        <ul id="quote-list"></ul>
+      </section>
+    </main>
+  </div>
   <script>
     const STATUS_NOTE = {
       ready: "The job continues into publish.",
@@ -344,18 +472,74 @@
       failed: "A model call or a grounding check failed.",
       publish_failed: "The local note is kept. Open the authorization link, then publish the saved note."
     };
+    const STATUS_LABEL = {
+      ready: "Ready to publish",
+      published: "Published",
+      no_reviews: "No reviews",
+      short_catalog: "Short catalog",
+      failed: "Failed",
+      publish_failed: "Publish failed"
+    };
+    const CHECK_LABEL = {
+      theme_cap: "Theme cap",
+      quote_count: "Quote count",
+      verbatim: "Verbatim quotes",
+      theme_match: "Theme match",
+      action_count: "Action count",
+      length: "Length",
+      privacy: "Privacy",
+      window: "Window"
+    };
     const PROBLEM = new Set(["failed", "publish_failed"]);
     const SETTLED = new Set(["no_reviews", "short_catalog"]);
+    const WORD_LIMIT = 280;
     const weekInput = document.querySelector("#week");
     const message = document.querySelector("#message");
     const activity = document.querySelector("#activity");
     const runButton = document.querySelector("#run");
     const publishButton = document.querySelector("#publish");
+    const copyButton = document.querySelector("#copy-note");
     let token = 0;
 
     function stars(rating) {
       const filled = Math.max(0, Math.min(5, Number(rating) || 0));
       return "★★★★★".slice(0, filled) + "☆☆☆☆☆".slice(0, 5 - filled);
+    }
+
+    function formatNumber(value) {
+      return Number(value).toLocaleString("en-US");
+    }
+
+    function formatDay(iso) {
+      const parts = String(iso).split("-").map(Number);
+      if (parts.length < 3 || parts.some((part) => Number.isNaN(part))) return String(iso);
+      const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+      return date.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC"
+      });
+    }
+
+    function ruleLabel(rule) {
+      if (CHECK_LABEL[rule]) return CHECK_LABEL[rule];
+      return String(rule || "").replaceAll("_", " ");
+    }
+
+    function themeName(payload, id) {
+      const lists = [
+        payload.catalog && payload.catalog.themes,
+        payload.manifest && payload.manifest.themes,
+        payload.pulse && payload.pulse.themes
+      ];
+      for (const list of lists) {
+        if (!Array.isArray(list)) continue;
+        for (const theme of list) {
+          if (theme && theme.id === id && theme.name) return theme.name;
+        }
+      }
+      return id;
     }
 
     async function readJson(response) {
@@ -424,13 +608,6 @@
         next.append(actionLink(manifest.authorization_url, "Open authorization"));
         return;
       }
-      if (status === "ready") {
-        const copy = document.createElement("p");
-        copy.className = "next-copy";
-        copy.textContent = "Publish the saved note.";
-        next.append(copy);
-        return;
-      }
       if (manifest.doc_url) {
         next.append(actionLink(manifest.doc_url, "Open document"));
       }
@@ -444,20 +621,16 @@
         section.hidden = true;
         return;
       }
-      const windowText = manifest.window && manifest.window.start && manifest.window.end
-        ? manifest.window.start + " – " + manifest.window.end
-        : "";
       const facts = [
-        ["Window", windowText, "text"],
-        ["Rows read", manifest.rows_read, "text"],
-        ["Rows kept", manifest.rows_kept, "text"],
-        ["Rows dropped", manifest.rows_dropped, "text"],
-        ["General Appreciation", manifest.general_appreciation_count, "text"],
-        ["Unclassified", manifest.unclassified_count, "text"],
-        ["Message", manifest.message_id || "", "mono"]
+        ["Rows read", manifest.rows_read],
+        ["Rows kept", manifest.rows_kept],
+        ["Rows dropped", manifest.rows_dropped],
+        ["General appreciation", manifest.general_appreciation_count],
+        ["Unclassified", manifest.unclassified_count],
+        ["Message", manifest.message_id || ""]
       ];
-      for (const [label, value, kind] of facts) {
-        if (!present(value)) continue;
+      for (const [label, value] of facts) {
+        if (!present(value) && value !== 0) continue;
         const row = document.createElement("div");
         row.className = "fact";
         const name = document.createElement("span");
@@ -465,14 +638,7 @@
         name.textContent = label;
         const detail = document.createElement("span");
         detail.className = "fact-value";
-        if (kind === "mono") {
-          const code = document.createElement("span");
-          code.className = "mono";
-          code.textContent = String(value);
-          detail.append(code);
-        } else {
-          detail.textContent = String(value);
-        }
+        detail.textContent = String(value);
         row.append(name, detail);
         list.append(row);
       }
@@ -482,28 +648,31 @@
     function renderChecks(manifest) {
       const section = document.querySelector("#checks");
       const list = document.querySelector("#check-list");
+      const score = document.querySelector("#check-score");
       list.replaceChildren();
       const results = manifest && manifest.checks_ran === true ? manifest.check_results : null;
       if (!Array.isArray(results) || results.length === 0) {
         section.hidden = true;
+        score.textContent = "";
         return;
       }
       section.hidden = false;
+      const passed = results.filter((item) => item.passed === true).length;
+      score.textContent = passed + " of " + results.length + " passed";
       for (const item of results) {
-        const passed = item.passed === true;
+        const ok = item.passed === true;
         const row = document.createElement("li");
-        row.className = passed ? "check pass" : "check fail";
+        row.className = ok ? "check pass" : "check fail";
         const head = document.createElement("div");
         head.className = "check-row";
         const rule = document.createElement("span");
-        rule.className = "check-rule";
-        rule.textContent = item.rule || "";
+        rule.textContent = ruleLabel(item.rule);
         const state = document.createElement("span");
         state.className = "check-state";
-        state.textContent = passed ? "Passed" : "Failed";
+        state.textContent = ok ? "Passed" : "Failed";
         head.append(rule, state);
         row.append(head);
-        if (!passed && item.detail) {
+        if (!ok && item.detail) {
           const detail = document.createElement("p");
           detail.className = "check-detail";
           detail.textContent = item.detail;
@@ -513,60 +682,108 @@
       }
     }
 
+    function renderMeasures(payload) {
+      const manifest = payload.manifest;
+      const kept = Number(payload.kept_count) || 0;
+      const keptFigure = document.querySelector("#kept-figure");
+      const keptCaption = document.querySelector("#kept-caption");
+      const showKept = Boolean(manifest) || kept > 0;
+      keptFigure.textContent = showKept ? formatNumber(kept) : "—";
+      keptCaption.textContent = manifest && present(manifest.rows_read)
+        ? "kept from " + formatNumber(manifest.rows_read) + " read"
+        : "reviews kept";
+
+      const ratings = payload.ratings || {};
+      let weighted = 0;
+      let counted = 0;
+      let low = 0;
+      const counts = {};
+      for (const star of ["1", "2", "3", "4", "5"]) {
+        const count = Number(ratings[star] || 0);
+        counts[star] = count;
+        weighted += Number(star) * count;
+        counted += count;
+        if (star === "1" || star === "2") low += count;
+      }
+      const blended = document.querySelector("#blended");
+      const blendedWrap = document.querySelector("#blended-wrap");
+      blended.textContent = counted ? (weighted / counted).toFixed(2) : "—";
+      blendedWrap.classList.toggle("has-rating", counted > 0);
+      const lowFigure = document.querySelector("#low-figure");
+      const splitCaption = document.querySelector("#split-caption");
+      const split = document.querySelector("#ratings");
+      split.replaceChildren();
+      if (counted) {
+        const lowPct = Math.round((low / counted) * 100);
+        lowFigure.textContent = lowPct + "%";
+        splitCaption.textContent = "are 1 or 2 stars";
+        for (const star of ["1", "2", "3", "4", "5"]) {
+          const count = counts[star];
+          if (!count) continue;
+          const segment = document.createElement("span");
+          if (Number(star) <= 2) segment.className = "low";
+          segment.style.flexGrow = String(count);
+          segment.title = star + " star, " + count;
+          split.append(segment);
+        }
+      } else {
+        lowFigure.textContent = "—";
+        splitCaption.textContent = "No ratings yet";
+      }
+
+      const note = (payload.note || "").trim();
+      const fromNote = note ? note.split(/\s+/).length : 0;
+      const fromPulse = payload.pulse && Number(payload.pulse.word_count);
+      const words = fromNote || fromPulse || 0;
+      const wordsNode = document.querySelector("#words");
+      const wordsCaption = document.querySelector("#words-caption");
+      wordsNode.textContent = words ? formatNumber(words) : "—";
+      wordsCaption.textContent = words > WORD_LIMIT
+        ? "over the " + WORD_LIMIT + " word limit"
+        : "words, " + WORD_LIMIT + " is the limit";
+      wordsCaption.classList.toggle("problem", words > WORD_LIMIT);
+    }
+
     function render(payload) {
       const manifest = payload.manifest;
-      const summary = document.querySelector("#summary");
       const pill = document.querySelector("#status-pill");
       const copy = document.querySelector("#status-copy");
       const reason = document.querySelector("#reason");
-      summary.hidden = false;
-      document.querySelector("#week-shown").textContent = payload.week || weekInput.value.trim();
+      const windowLine = document.querySelector("#window-line");
+      document.querySelector("#week-shown").textContent = payload.week || weekInput.value.trim() || "Weekly pulse";
+      const windowValue = manifest && manifest.window;
+      if (windowValue && windowValue.start && windowValue.end) {
+        windowLine.hidden = false;
+        windowLine.textContent = formatDay(windowValue.start) + " – " + formatDay(windowValue.end);
+      } else {
+        windowLine.hidden = true;
+        windowLine.textContent = "";
+      }
       if (!manifest) {
         pill.hidden = true;
         copy.textContent = "No run for this week yet.";
-        copy.className = "status-copy empty";
+        copy.className = "empty";
         reason.hidden = true;
         reason.textContent = "";
       } else {
         const status = manifest.status || "";
         pill.hidden = !status;
-        pill.textContent = status;
+        pill.textContent = STATUS_LABEL[status] || status;
         pill.className = PROBLEM.has(status) ? "pill warn" : SETTLED.has(status) ? "pill neutral" : "pill";
         copy.textContent = STATUS_NOTE[status] || "";
-        copy.className = "status-copy";
+        copy.className = "";
         reason.hidden = !manifest.reason;
         reason.textContent = manifest.reason || "";
       }
       renderNext(manifest);
       renderChecks(manifest);
       renderFacts(manifest);
-      const showReviews = Boolean(manifest) || Number(payload.kept_count) > 0;
-      document.querySelector("#volume").hidden = !showReviews;
-      document.querySelector("#kept").textContent = payload.kept_count + " reviews kept";
-      const ratings = payload.ratings || {};
-      const max = Math.max(1, ...Object.values(ratings).map(Number));
-      const split = document.querySelector("#ratings");
-      split.replaceChildren();
-      for (const star of ["1", "2", "3", "4", "5"]) {
-        const count = Number(ratings[star] || 0);
-        const row = document.createElement("div");
-        row.className = "bar-row";
-        const name = document.createElement("span");
-        name.textContent = star + " star";
-        const track = document.createElement("div");
-        track.className = "track";
-        const fill = document.createElement("div");
-        fill.className = "fill";
-        fill.style.width = (count / max) * 100 + "%";
-        track.append(fill);
-        const total = document.createElement("span");
-        total.textContent = String(count);
-        row.append(name, track, total);
-        split.append(row);
-      }
+      renderMeasures(payload);
       renderThemes(payload);
       renderQuotes(payload);
       renderActions(payload);
+      const side = document.querySelector(".side");
+      side.hidden = [...side.children].every((child) => child.hidden);
       const noteSection = document.querySelector("#note");
       const text = payload.note || "";
       const docLink = document.querySelector("#doc-link");
@@ -574,6 +791,7 @@
       noteSection.hidden = !text;
       document.querySelector("#note-text").textContent = text;
       docLink.hidden = !docUrl;
+      copyButton.hidden = !text;
       if (docUrl) docLink.href = docUrl;
     }
 
@@ -590,71 +808,70 @@
           if (theme && theme.summary) summaries.set(theme.id, theme.summary);
         }
       }
-      section.hidden = themes.length === 0;
       const list = document.querySelector("#theme-list");
       list.replaceChildren();
+      let rank = 0;
       for (const theme of themes) {
-        const item = document.createElement("li");
-        item.className = "theme";
-        const row = document.createElement("div");
-        row.className = "theme-row";
-        const name = document.createElement("span");
-        name.className = "theme-name";
-        name.textContent = theme.name || theme.id || "";
-        const meta = document.createElement("span");
-        meta.className = "theme-meta";
-        if (theme.review_count != null) {
-          const count = document.createElement("span");
-          count.textContent = theme.review_count + " reviews";
-          meta.append(count);
-        }
-        if (typeof theme.average_rating === "number") {
-          const rating = document.createElement("span");
-          rating.textContent = "Average " + theme.average_rating;
-          meta.append(rating);
-        }
-        if (top.has(theme.id)) {
-          const mark = document.createElement("span");
-          mark.className = "top";
-          mark.textContent = "Top";
-          meta.append(mark);
-        }
-        row.append(name, meta);
-        item.append(row);
-        if (theme.definition) {
-          const definition = document.createElement("p");
-          definition.className = "theme-extra";
-          definition.textContent = theme.definition;
-          item.append(definition);
-        }
-        const summary = summaries.get(theme.id);
-        if (summary) {
-          const line = document.createElement("p");
-          line.className = "theme-extra";
-          line.textContent = summary;
-          item.append(line);
-        }
-        list.append(item);
+        rank += 1;
+        list.append(themeItem(theme, rank, top, summaries));
       }
       const appreciation = payload.catalog && payload.catalog.general_appreciation;
       if (appreciation && appreciation.review_count != null) {
-        section.hidden = false;
-        const item = document.createElement("li");
-        item.className = "theme";
-        const row = document.createElement("div");
-        row.className = "theme-row";
-        const name = document.createElement("span");
-        name.className = "theme-name";
-        name.textContent = appreciation.name || "General Appreciation";
-        const meta = document.createElement("span");
-        meta.className = "theme-meta";
-        const count = document.createElement("span");
-        count.textContent = appreciation.review_count + " reviews";
-        meta.append(count);
-        row.append(name, meta);
-        item.append(row);
-        list.append(item);
+        list.append(themeItem(appreciation, 0, top, summaries));
       }
+      section.hidden = list.childElementCount === 0;
+    }
+
+    function themeItem(theme, rank, top, summaries) {
+      const item = document.createElement("li");
+      item.className = "theme";
+      const average = typeof theme.average_rating === "number" ? theme.average_rating : null;
+      if (average != null && average < 2.5 && theme.review_count) item.classList.add("pain");
+      const marker = document.createElement("span");
+      marker.className = "rank";
+      marker.textContent = rank ? String(rank).padStart(2, "0") : "";
+      const body = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "theme-name";
+      name.textContent = theme.name || theme.id || "";
+      const meta = document.createElement("div");
+      meta.className = "theme-meta";
+      if (theme.review_count != null) {
+        const count = document.createElement("span");
+        const unit = Number(theme.review_count) === 1 ? " review" : " reviews";
+        count.textContent = theme.review_count + unit;
+        meta.append(count);
+      }
+      if (average != null) {
+        const rating = document.createElement("span");
+        rating.textContent = average.toFixed(1) + " average";
+        meta.append(rating);
+        const tone = document.createElement("span");
+        tone.textContent = average < 2.5 ? "Mostly negative" : average < 3.5 ? "Mixed" : "Mostly positive";
+        meta.append(tone);
+      }
+      if (top.has(theme.id)) {
+        const mark = document.createElement("span");
+        mark.className = "in-note";
+        mark.textContent = "In the note";
+        meta.append(mark);
+      }
+      body.append(name, meta);
+      if (theme.definition) {
+        const definition = document.createElement("p");
+        definition.className = "theme-extra definition";
+        definition.textContent = theme.definition;
+        body.append(definition);
+      }
+      const summary = summaries.get(theme.id);
+      if (summary) {
+        const line = document.createElement("p");
+        line.className = "theme-extra";
+        line.textContent = summary;
+        body.append(line);
+      }
+      item.append(marker, body);
+      return item;
     }
 
     function renderQuotes(payload) {
@@ -681,15 +898,8 @@
         }
         if (quote.theme_id) {
           const theme = document.createElement("span");
-          theme.className = "theme-id";
-          theme.textContent = quote.theme_id;
+          theme.textContent = themeName(payload, quote.theme_id);
           meta.append(theme);
-        }
-        if (quote.review_id) {
-          const review = document.createElement("span");
-          review.className = "theme-id";
-          review.textContent = quote.review_id;
-          meta.append(review);
         }
         item.append(text, meta);
         list.append(item);
@@ -709,7 +919,7 @@
         if (action.theme_id) {
           const theme = document.createElement("span");
           theme.className = "action-theme";
-          theme.textContent = action.theme_id;
+          theme.textContent = themeName(payload, action.theme_id);
           item.append(theme);
         }
         list.append(item);
@@ -771,6 +981,17 @@
       }
     });
 
+    copyButton.addEventListener("click", async () => {
+      const text = document.querySelector("#note-text").textContent || "";
+      try {
+        await navigator.clipboard.writeText(text);
+        copyButton.textContent = "Copied";
+        setTimeout(() => { copyButton.textContent = "Copy note"; }, 1600);
+      } catch (error) {
+        setMessage(error.message || "Could not copy the note.", true);
+      }
+    });
+
     weekInput.addEventListener("change", () => {
       const week = weekInput.value.trim();
       if (!week) return;
@@ -780,13 +1001,21 @@
       });
     });
 
+    const sectionLinks = [...document.querySelectorAll(".rail nav a")];
+    for (const link of sectionLinks) {
+      link.addEventListener("click", () => {
+        for (const other of sectionLinks) other.removeAttribute("aria-current");
+        link.setAttribute("aria-current", "true");
+      });
+    }
+
     async function boot() {
       const listed = await readJson(await fetch("/api/weeks"));
       const dataList = document.querySelector("#weeks");
       for (const item of listed.weeks) {
         const option = document.createElement("option");
         option.value = item.week;
-        option.label = item.week + " · " + item.status;
+        option.label = item.week + " " + (STATUS_LABEL[item.status] || item.status);
         dataList.append(option);
       }
       if (!weekInput.value && listed.weeks.length) {
