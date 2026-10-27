@@ -33,34 +33,15 @@ DROPPED = [
     (4, "This older review sits well outside the configured window today.", "2026-01-15"),
 ]
 
-CATALOG = {
-    "themes": [
-        {
-            "id": "orders",
-            "name": "Orders",
-            "definition": "Order placement and failed orders.",
-            "examples": ["order delay", "order failed"],
-        },
-        {
-            "id": "charts",
-            "name": "Charts",
-            "definition": "Chart speed and lag.",
-            "examples": ["chart lag", "slow chart"],
-        },
-        {
-            "id": "support",
-            "name": "Support",
-            "definition": "Customer support and the call centre.",
-            "examples": ["customer support", "call centre"],
-        },
-        {
-            "id": "charges",
-            "name": "Charges",
-            "definition": "Brokerage and other charges.",
-            "examples": ["brokerage fee", "nice app"],
-        },
-    ]
-}
+SHORT = [
+    (1, "The order delay and the order failed this morning again today.", "2026-09-01"),
+    (2, "Another order delay showed up when the order failed after lunch.", "2026-09-02"),
+    (5, "This is a nice app and easy to use overall for me.", "2026-09-03"),
+    (5, "Best app for beginners really and nothing more to add.", "2026-09-04"),
+    (4, "Really nice and simple, nothing else to say about it.", "2026-09-05"),
+    (5, "I like this application and I would recommend it to friends.", "2026-09-06"),
+    (3, "Very bad experience overall and I have no specific complaint.", "2026-09-07"),
+]
 
 
 @pytest.fixture(autouse=True)
@@ -76,25 +57,19 @@ class ScriptedModel:
         self.mode = mode
         self.run_dir = run_dir
         self.prompts: list[str] = []
-        self.blank_theme_ids: list[bool] = []
 
     def complete(self, prompt: str) -> str:
-        if prompt.startswith("TASK: catalog") and "rejected" not in prompt:
-            reviews = load_reviews_jsonl(self.run_dir / "reviews.jsonl")
-            self.blank_theme_ids.append(all(review.theme_id == "" for review in reviews))
         self.prompts.append(prompt)
         task = prompt.splitlines()[0]
-        if task == "TASK: catalog":
-            return json.dumps(CATALOG)
-        if task == "TASK: assign":
-            labeler = _label_short if self.mode == "short" else _label_ready
-            return _assignments(prompt, labeler)
         if task == "TASK: compose":
+            reviews = load_reviews_jsonl(self.run_dir / "reviews.jsonl")
+            assert reviews
+            assert all(review.theme_id for review in reviews)
             pools = _pools(prompt)
             assert all(len(rows) <= 12 for rows in pools.values())
             if self.mode == "badquote":
-                return _compose(pools, bad_quote=True)
-            return _compose(pools)
+                return _compose(prompt, pools, bad_quote=True)
+            return _compose(prompt, pools)
         raise AssertionError(task)
 
 
@@ -117,22 +92,28 @@ def test_fixture_run_is_ready_and_a_rerun_replaces_the_folder(tmp_path: Path) ->
     assert manifest["rows_kept"] == 7
     assert manifest["rows_dropped"] == 2
     assert manifest["empty_exports"] == []
-    assert manifest["unclassified_count"] == 1
-    assert manifest["top_theme_ids"] == ["orders", "support", "charts"]
+    assert manifest["unclassified_count"] == 0
+    assert manifest["general_appreciation_count"] == 0
+    assert manifest["top_theme_ids"] == [
+        "orders_and_trading",
+        "customer_support",
+        "charts_speed_and_stability",
+    ]
     assert manifest["doc_url"] == ""
     assert manifest["draft_id"] == ""
     assert manifest["checks_ran"] is True
     assert manifest["check_results"]
     assert all(item["passed"] for item in manifest["check_results"])
     counts = {theme["id"]: theme["review_count"] for theme in manifest["themes"]}
-    assert counts == {"orders": 2, "charts": 2, "support": 2, "charges": 0}
+    assert counts == {
+        "orders_and_trading": 2,
+        "charts_speed_and_stability": 2,
+        "customer_support": 2,
+        "charges_and_brokerage": 1,
+        "payments_withdrawals_and_mutual_funds": 0,
+    }
     assert len(manifest["themes"]) <= 5
-    assert [prompt.splitlines()[0] for prompt in model.prompts] == [
-        "TASK: catalog",
-        "TASK: assign",
-        "TASK: compose",
-    ]
-    assert model.blank_theme_ids == [True]
+    assert [prompt.splitlines()[0] for prompt in model.prompts] == ["TASK: compose"]
     artifacts = {
         "reviews.jsonl",
         "catalog.json",
@@ -145,10 +126,14 @@ def test_fixture_run_is_ready_and_a_rerun_replaces_the_folder(tmp_path: Path) ->
     assert pulse["word_count"] <= 280
     assert pulse["doc_url"] == ""
     assert pulse["draft_id"] == ""
-    assert pulse["top_theme_ids"] == ["orders", "support", "charts"]
+    assert pulse["top_theme_ids"] == [
+        "orders_and_trading",
+        "customer_support",
+        "charts_speed_and_stability",
+    ]
     first_ids = [review.id for review in load_reviews_jsonl(run_dir / "reviews.jsonl")]
     assert len(first_ids) == 7
-    assert any(review.theme_id == "unclassified" for review in load_reviews_jsonl(run_dir / "reviews.jsonl"))
+    assert all(review.theme_id for review in load_reviews_jsonl(run_dir / "reviews.jsonl"))
 
     (run_dir / "obsolete.txt").write_text("stale", encoding="utf-8")
     again = ScriptedModel("ready", run_dir)
@@ -157,14 +142,13 @@ def test_fixture_run_is_ready_and_a_rerun_replaces_the_folder(tmp_path: Path) ->
     assert second.status == STATUS_READY
     assert not (run_dir / "obsolete.txt").exists()
     assert {path.name for path in run_dir.iterdir()} == artifacts
-    assert again.blank_theme_ids == [True]
     second_ids = [review.id for review in load_reviews_jsonl(run_dir / "reviews.jsonl")]
     assert second_ids == first_ids
     assert export.read_bytes() == original
 
 
 def test_short_catalog_stops_before_compose(tmp_path: Path) -> None:
-    config, _export = _project(tmp_path, "play.csv", KEPT + DROPPED)
+    config, _export = _project(tmp_path, "play.csv", SHORT + DROPPED)
     run_dir = tmp_path / "data" / "runs" / WEEK
     model = ScriptedModel("short", run_dir)
 
@@ -172,12 +156,13 @@ def test_short_catalog_stops_before_compose(tmp_path: Path) -> None:
 
     manifest = _manifest(result.manifest_path)
     assert result.status == STATUS_SHORT_CATALOG
-    assert manifest["unclassified_count"] == 5
+    assert manifest["unclassified_count"] == 1
+    assert manifest["general_appreciation_count"] == 4
     assert manifest["checks_ran"] is False
     counts = {theme["id"]: theme["review_count"] for theme in manifest["themes"]}
-    assert counts["orders"] == 2
+    assert counts["orders_and_trading"] == 2
     assert sum(1 for count in counts.values() if count) < 3
-    assert "TASK: compose" not in [prompt.splitlines()[0] for prompt in model.prompts]
+    assert model.prompts == []
     assert (run_dir / "catalog.json").is_file()
     assert (run_dir / "reviews.jsonl").is_file()
     assert not (run_dir / "pulse.json").exists()
@@ -324,34 +309,6 @@ def _project(
     return config, export
 
 
-def _label_ready(text: str) -> str:
-    folded = text.casefold()
-    if "order delay" in folded:
-        return "orders"
-    if "chart lag" in folded:
-        return "charts"
-    if "call centre" in folded:
-        return "support"
-    return "unclassified"
-
-
-def _label_short(text: str) -> str:
-    if "order delay" in text.casefold():
-        return "orders"
-    return "unclassified"
-
-
-def _assignments(prompt: str, labeler) -> str:
-    body = prompt.split("Reviews:\n", 1)[1]
-    pairs = []
-    for line in body.splitlines():
-        if not line.startswith("{"):
-            break
-        item = json.loads(line)
-        pairs.append({"id": item["id"], "theme_id": labeler(item["text"])})
-    return json.dumps({"assignments": pairs})
-
-
 def _pools(prompt: str) -> dict[str, list[dict]]:
     found: dict[str, list[dict]] = {}
     for section in prompt.split("--- theme ")[1:]:
@@ -366,7 +323,21 @@ def _pools(prompt: str) -> dict[str, list[dict]]:
     return found
 
 
-def _compose(pools: dict[str, list[dict]], *, bad_quote: bool = False) -> str:
+def _theme_names(prompt: str) -> dict[str, str]:
+    found: dict[str, str] = {}
+    for section in prompt.split("--- theme ")[1:]:
+        theme_id, rest = section.split(" ---", 1)
+        for line in rest.splitlines():
+            if line.startswith("name: "):
+                found[theme_id] = line.removeprefix("name: ").strip()
+                break
+    return found
+
+
+def _compose(
+    prompt: str, pools: dict[str, list[dict]], *, bad_quote: bool = False
+) -> str:
+    names = _theme_names(prompt)
     quotes = []
     for rows in pools.values():
         assert rows
@@ -376,24 +347,16 @@ def _compose(pools: dict[str, list[dict]], *, bad_quote: bool = False) -> str:
     return json.dumps(
         {
             "summaries": [
-                {"theme_id": "orders", "text": "Users want an order to show the price they confirmed."},
-                {"theme_id": "charts", "text": "Users want charts to open without a lag."},
-                {"theme_id": "support", "text": "Users want support to stay on the call."},
+                {"theme_id": theme_id, "text": "Users want a clearer next step."}
+                for theme_id in pools
             ],
             "quotes": quotes,
             "actions": [
                 {
-                    "theme_id": "orders",
-                    "text": "Fix the Orders screen so a failed order shows the confirmed price.",
-                },
-                {
-                    "theme_id": "charts",
-                    "text": "Make Charts open without the lag users hit at the open.",
-                },
-                {
-                    "theme_id": "support",
-                    "text": "Answer Support calls instead of disconnecting the user.",
-                },
+                    "theme_id": theme_id,
+                    "text": f"Improve {names[theme_id]} before the next weekly release.",
+                }
+                for theme_id in pools
             ],
         }
     )

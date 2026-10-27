@@ -30,7 +30,7 @@ flowchart LR
 | Anthropic key, MCP token, Doc id, recipient | Railway variables | The browser and Vercel never see them |
 | Google Doc and Gmail | Existing MCP service | This repo still has no Google OAuth client |
 
-A full week is one catalog call, assignment in batches of 30, then compose. `POST /api/weeks/{week}/run` returns `202` and the work continues on a thread inside the Railway process. The page polls `GET /api/weeks/{week}/job`. That thread and its job table live in one process, so the Railway service stays at one replica.
+A full week classifies every review locally, then calls the model once to compose the note, plus at most two retries. `POST /api/weeks/{week}/run` returns `202` and the work continues on a thread inside the Railway process. The page polls `GET /api/weeks/{week}/job`. That thread and its job table live in one process, so the Railway service stays at one replica.
 
 ## Code to land before the first deploy
 
@@ -47,15 +47,15 @@ The local server refuses a public bind, and the public URLs can start a paid mod
 PYTHONPATH=src python -m groww_pulse serve --host 0.0.0.0 --port $PORT
 ```
 
-That command is the Procfile and the start command in `.railway/railway.ts`. The health check path is `/api/weeks`, the timeout is 120 seconds, and the service is one replica. A volume named `pulse-data` mounts at `/app/data`. Do not deploy a new build while a week job is `running`.
+That command is the Procfile and the start command in `.railway/railway.ts`. The health check path is `/api/weeks`, the timeout is 120 seconds, and the service is one replica. The data volume mounts at `/app/data`. Do not deploy a new build while a week job is `running`.
 
 ## Railway
 
-Create one service from this repo. Root directory is the repository root. Apply `.railway/railway.ts` with the Railway CLI (`railway config apply`) so the start command, health check, replica count, and volume are the service settings. Railpack is the builder.
+The running API is the Railway service `web` in project `agile-possibility`. Root directory is the repository root. Railpack is the builder. `.railway/railway.ts` still describes a service `api`, a project `groww-pulse`, and a volume `pulse-data`. That file was not applied. The attached volume is `web-volume`, mounted at `/app/data`. Keep one replica. Do not deploy a new build while a week job is `running`.
 
 ### Volume
 
-`.railway/railway.ts` mounts `pulse-data` at `/app/data`. Railway builds into `/app`, and the pipeline resolves `data/raw` and `data/runs` from the directory that contains `config.yaml`. The mount covers both trees. Volumes attach at container start, so a file copied in only during the image build is hidden once the volume is mounted. Put the export on the volume after the service is up.
+`web-volume` is mounted at `/app/data`. Railway builds into `/app`, and the pipeline resolves `data/raw` and `data/runs` from the directory that contains `config.yaml`. The mount covers both trees. Volumes attach at container start, so a file copied in only during the image build is hidden once the volume is mounted. The export and the `2026-W41` folder are already on this volume. To replace them:
 
 ```text
 railway volume files upload ./data/raw/play-groww.csv /raw/play-groww.csv
@@ -63,7 +63,7 @@ railway volume files upload ./data/raw/play-groww.csv /raw/play-groww.csv
 
 That remote path is inside the volume, which the process sees as `/app/data/raw/play-groww.csv`, matching `export: data/raw/play-groww.csv` in `config.yaml`.
 
-To show the existing `2026-W41` pulse before anyone clicks **Run this week**:
+Replace the saved week with:
 
 ```text
 railway volume files upload ./data/runs/2026-W41 /runs/2026-W41
@@ -77,7 +77,7 @@ Set these on the Railway service. `.railway/railway.ts` preserves the three requ
 
 | Variable | Required | Role |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Yes | Cluster and compose. `PULSE_API_KEY` is accepted as an alias |
+| `ANTHROPIC_API_KEY` | Yes | Compose. Clustering does not use it. `PULSE_API_KEY` is accepted as an alias |
 | `PULSE_MCP_TOKEN` | Yes | Bearer token for the hosted Docs and Gmail MCP server |
 | `PULSE_API_TOKEN` | Yes | Bearer token the page's host sends on Run and Publish |
 | `PULSE_DOC_ID` | No | Overrides `doc_id` in `config.yaml` |
@@ -87,11 +87,11 @@ Set these on the Railway service. `.railway/railway.ts` preserves the three requ
 
 `config.yaml` already has the window, the Play package, the Doc, and the recipient. Railway env overrides win for the Doc and the recipient because `load_env_file` does not replace variables that already exist, and Railway injects its variables before the process starts.
 
-Generate a public domain for the service. Set that hostname, without `https://`, as `PULSE_RAILWAY_HOST` on Vercel. A request to the Railway host still reaches the API; the write token is what stops an anonymous Run or Publish.
+The public hostname in use is `web-production-f22c6.up.railway.app`. That value, with no `https://`, is `PULSE_RAILWAY_HOST` on Vercel. A request to the Railway host still reaches the API; the write token is what stops an anonymous Run or Publish.
 
 ## Vercel
 
-Create a second project from the same repo. Framework preset is Other. Install command and build command are empty. Output directory is `src/groww_pulse/web/static`, also set in `vercel.json`.
+The Vercel project is `groww-ai-agent`, from the same repo. Framework preset is Other. Install command and build command are empty. Output directory is `src/groww_pulse/web/static`, also set in `vercel.json`.
 
 Production env on Vercel is only:
 
@@ -100,20 +100,20 @@ Production env on Vercel is only:
 | `PULSE_API_TOKEN` | Same value as Railway. Injected on `/api/*` rewrites. Absent from the page |
 | `PULSE_RAILWAY_HOST` | Railway hostname only, no scheme. `vercel.json` proxies `/api/*` there |
 
-After the first production deploy, open the Vercel URL. The Railway URL is the API, not the page operators use.
+The operator page is `https://groww-ai-agent.vercel.app`. The Railway URL is the API, not the page operators use.
 
-Connect both hosts to the same git branch if the repo has a remote. A push then rebuilds the page and the API. Until a remote exists, `railway up` and `vercel deploy` from this directory publish the same tree. `.gitignore` still excludes `data/raw/*`, `data/runs/*`, and `.env`. The volume, not the git push, holds the export and the week folders.
+The Vercel project `groww-ai-agent` is linked to `DeepakAg1234/Groww-AI-Agent` on `main`. A push rebuilds the page. The Railway service is a separate project from the same repo. `.gitignore` excludes `data/raw/*`, `data/runs/*`, `.env`, and `.vercel`. The volume, not the git push, holds the export and the week folders.
 
 ## First production check
 
 Do these in order. Stop if a step fails.
 
-1. `GET https://<vercel-host>/` returns the pulse page.
-2. `GET https://<vercel-host>/api/weeks` returns JSON. With the `2026-W41` folder uploaded, that week is listed as `published`.
+1. `GET https://groww-ai-agent.vercel.app/` returns the pulse page.
+2. `GET https://groww-ai-agent.vercel.app/api/weeks` returns JSON. With the `2026-W41` folder on the volume, that week is listed as `published`.
 3. Open the Vercel URL, leave the week as `2026-W41`, and confirm the page shows 1,423 kept reviews, the catalog, three quotes, three actions, the note, `doc_url`, and `message_id`.
-4. `POST https://<railway-host>/api/weeks/2026-W41/run` with no `Authorization` header returns `401`.
+4. `POST https://web-production-f22c6.up.railway.app/api/weeks/2026-W41/run` with no `Authorization` header returns `401`.
 5. On the page, **Publish saved note** for a week already `published` is rejected by the API with the existing "not ready" response. It does not call the model.
-6. Run a week that has no rows in the export window, or a fixture week, and confirm the job reaches `no_reviews` or `ready` and the Railway log shows the Anthropic and MCP calls only when a real week is clustering or publishing.
+6. Run a week that has no rows in the export window, or a fixture week, and confirm the job reaches `no_reviews` or `ready` and the Railway log shows the Anthropic and MCP calls only when a real week is composing or publishing.
 7. For a real publish, read the Google Doc and the sent message. The appended text matches `pulse.txt`. Publishing that same file again does not append or send a second copy.
 
 ## While it is up

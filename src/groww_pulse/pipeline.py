@@ -23,7 +23,12 @@ from groww_pulse.checks import (
     load_reviews_jsonl,
     write_reviews_jsonl,
 )
-from groww_pulse.cluster import UNCLASSIFIED, ClusterError, cluster_directory
+from groww_pulse.cluster import (
+    GENERAL_APPRECIATION,
+    UNCLASSIFIED,
+    ClusterError,
+    cluster_directory,
+)
 from groww_pulse.compose import ComposeError, compose_directory
 from groww_pulse.config import Config, load_config
 from groww_pulse.ingest.file_export import load_reviews
@@ -90,9 +95,9 @@ def run_week(
     """Ingest, cluster, rank, compose, and check one week.
 
     The week's folder is replaced. ``reviews.jsonl`` is rewritten before
-    any model call, so theme ids start empty. A window with no reviews
-    stops before the model. Fewer than three non-empty themes stops
-    before compose. This command does not publish.
+    classification, so theme ids start empty. A window with no reviews
+    stops before the classifier and the model. Fewer than three non-empty
+    themes stops before compose. This command does not publish.
     """
     config, week_dir = _prepare_week(config_path, week, runs_dir)
     handoff = _collect_clean_reviews(config_path, week, runs_dir=runs_dir)
@@ -107,6 +112,7 @@ def run_week(
                 "themes": [],
                 "top_theme_ids": [],
                 "unclassified_count": 0,
+                "general_appreciation_count": 0,
                 "checks_ran": False,
                 "check_results": [],
                 "status": STATUS_NO_REVIEWS,
@@ -118,18 +124,15 @@ def run_week(
         )
 
     try:
-        if client is None:
-            client = LiveModelClient.from_env()
         cluster_directory(
             week_dir,
-            client,
             max_themes=config.max_themes,
             pulse_theme_count=config.pulse_theme_count,
         )
-    except (ClusterError, ModelError) as exc:
+    except ClusterError as exc:
         return _commit(week_dir, _failed_manifest(week_dir, base, config, str(exc)))
 
-    themes, top_theme_ids, unclassified_count = _snapshot(week_dir)
+    themes, top_theme_ids, unclassified_count, appreciation_count = _snapshot(week_dir)
     populated = sum(1 for theme in themes if int(theme["review_count"]) > 0)
     if populated < config.pulse_theme_count:
         return _commit(
@@ -139,6 +142,7 @@ def run_week(
                 "themes": themes,
                 "top_theme_ids": top_theme_ids,
                 "unclassified_count": unclassified_count,
+                "general_appreciation_count": appreciation_count,
                 "checks_ran": False,
                 "check_results": [],
                 "status": STATUS_SHORT_CATALOG,
@@ -153,6 +157,8 @@ def run_week(
 
     window_start, window_end = week_window(week, config.window_weeks)
     try:
+        if client is None:
+            client = LiveModelClient.from_env()
         compose_directory(
             week_dir,
             client,
@@ -179,6 +185,7 @@ def run_week(
             "themes": themes,
             "top_theme_ids": top_theme_ids,
             "unclassified_count": unclassified_count,
+            "general_appreciation_count": appreciation_count,
             "checks_ran": True,
             "check_results": check_results,
             "status": STATUS_READY if passed else STATUS_FAILED,
@@ -319,7 +326,7 @@ def _base_manifest(week: str, config: Config, handoff: CleanHandoff) -> dict[str
 def _failed_manifest(
     week_dir: Path, base: dict[str, object], config: Config, reason: str
 ) -> dict[str, object]:
-    themes, top_theme_ids, unclassified_count = _snapshot(week_dir)
+    themes, top_theme_ids, unclassified_count, appreciation_count = _snapshot(week_dir)
     check_results = _check_results(week_dir, config)
     pulse_path = week_dir / "pulse.json"
     pulse: dict[str, object] = {}
@@ -332,6 +339,7 @@ def _failed_manifest(
         "themes": themes,
         "top_theme_ids": top_theme_ids,
         "unclassified_count": unclassified_count,
+        "general_appreciation_count": appreciation_count,
         "checks_ran": check_results is not None,
         "check_results": check_results or [],
         "status": STATUS_FAILED,
@@ -342,20 +350,23 @@ def _failed_manifest(
     }
 
 
-def _snapshot(week_dir: Path) -> tuple[list[dict[str, object]], list[str], int]:
-    """Theme counts, top ids, and the unclassified count from the run folder."""
+def _snapshot(week_dir: Path) -> tuple[list[dict[str, object]], list[str], int, int]:
+    """Theme counts, top ids, and the two non-product counts from the run folder."""
     reviews_path = week_dir / "reviews.jsonl"
     reviews = load_reviews_jsonl(reviews_path) if reviews_path.is_file() else []
     unclassified_count = sum(1 for review in reviews if review.theme_id == UNCLASSIFIED)
+    appreciation_count = sum(
+        1 for review in reviews if review.theme_id == GENERAL_APPRECIATION
+    )
     catalog_path = week_dir / "catalog.json"
     if not catalog_path.is_file():
-        return [], [], unclassified_count
+        return [], [], unclassified_count, appreciation_count
     raw = json.loads(catalog_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
-        return [], [], unclassified_count
+        return [], [], unclassified_count, appreciation_count
     counts: dict[str, int] = {}
     for review in reviews:
-        if review.theme_id and review.theme_id != UNCLASSIFIED:
+        if review.theme_id and review.theme_id not in {UNCLASSIFIED, GENERAL_APPRECIATION}:
             counts[review.theme_id] = counts.get(review.theme_id, 0) + 1
     themes: list[dict[str, object]] = []
     items = raw.get("themes")
@@ -375,7 +386,7 @@ def _snapshot(week_dir: Path) -> tuple[list[dict[str, object]], list[str], int]:
             )
     top_raw = raw.get("top_theme_ids")
     top = [str(theme_id) for theme_id in top_raw] if isinstance(top_raw, list) else []
-    return themes, top, unclassified_count
+    return themes, top, unclassified_count, appreciation_count
 
 
 def _check_results(week_dir: Path, config: Config) -> list[dict[str, object]] | None:

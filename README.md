@@ -8,7 +8,7 @@ This pipeline turns a public Google Play export of Groww reviews into a checked 
 
 Product, Support, and Leadership need a weekly note they can read in minutes: the themes people mention, what those users wrote, and three next steps. The reviews are already public on the Play listing for `com.nextbillion.groww`, and the operator already has the export at `data/raw/play-groww.csv`. The clean file the implementation plan describes for week `2026-W41` still has 1,423 reviews, dates from 2026-08-03 through 2026-10-08, and a mean rating of 2.91. Keyword hits in that file overlap — orders and trading about 308, charts and speed about 214, customer support about 168 — so the export itself is not the note. The operator runs the week. Stakeholders read the Google Doc. Gmail goes to the address in `email_to` or `PULSE_EMAIL_TO`.
 
-A summary written straight from the whole file can paraphrase a sentence, mention a theme that was never frozen, or add a metric the reviews do not contain. This pipeline asks the model for a catalog from a sample of 60 reviews, then for a note from at most 12 reviews in each of the top three themes. `checks.py` accepts the rendered note only when it has exactly three quotes, each a contiguous span of its cited review, exactly three actions that name a highlighted theme, and at most 280 words. The operator sees that as manifest status `ready`, or as `failed` with the broken rule in `check_results`, before `publish` appends or sends anything.
+A summary written straight from the whole file can paraphrase a sentence, mention a theme that was never frozen, or add a metric the reviews do not contain. This pipeline labels every review with a fixed five-theme classifier, then asks the model for a note from at most 12 reviews in each of the top three themes. `checks.py` accepts the rendered note only when it has exactly three quotes, each a contiguous span of its cited review, exactly three actions that name a highlighted theme, and at most 280 words. The operator sees that as manifest status `ready`, or as `failed` with the broken rule in `check_results`, before `publish` appends or sends anything.
 
 ## What it does
 
@@ -19,8 +19,9 @@ Each model call is a single user message. A retry is a new call whose prompt inc
 The run and publish commands record different outcomes. They are not one error state.
 
 - **`no_reviews`.** The window has nothing to cluster, and the model client is never built. In `test_empty_export_stops_before_the_model`, the only row is dated 2026-01-15. The manifest has `rows_kept: 0`, `reason` names the export, and `catalog.json` is absent.
-- **`short_catalog`.** Fewer than three themes have a review, so compose never runs. In `test_short_catalog_stops_before_compose`, five reviews are `unclassified`, only `orders` has reviews, and `pulse.json` is absent.
-- **`unclassified`.** A single review can abstain. The label is stored on the review, left out of ranking, and kept out of the note. In `test_four_theme_catalog_ranks_with_rating_tie_break`, "nice app and easy to use overall" and "best app for beginners really" stay `unclassified`. Orders and trading (two reviews, average rating 1) ranks above Charts and speed (two reviews, average rating 5). `test_theme_match_rejects_quotes_outside_the_top_three` rejects a quote whose review is `unclassified`.
+- **`short_catalog`.** Fewer than three product themes have a review, so compose never runs. In `test_short_catalog_stops_before_compose`, four reviews are General Appreciation, one stays `unclassified`, only the orders-and-trading theme has reviews, and `pulse.json` is absent.
+- **`general_appreciation`.** Praise that names no product issue. The label is stored on the review, shown as General Appreciation, and left out of ranking and the note. In `test_ranking_uses_count_then_rating_then_recency`, "nice app and easy to use overall" and "best app for beginners really" land here. Orders and trading (two reviews, average rating 1) ranks above Charts, speed, and stability (two reviews, average rating 5).
+- **`unclassified`.** A complaint or a nonsense body that matches no theme. It is stored, left out of ranking, and kept out of the note. `test_theme_match_rejects_quotes_outside_the_top_three` rejects a quote whose review is `unclassified`.
 - **`failed`.** The note was rejected, or a model call raised. `test_verbatim_rejects_a_one_word_change` rejects the quote "KYC verification asked for the same papers three times" because the stored review says "documents". `test_bad_quote_is_not_ready` sends the compose task three times, then writes status `failed` with an empty `doc_url`. If the Messages API returns `stop_reason` `refusal`, `model.py` raises `ModelError` and `run_week` records the same `failed` status.
 - **`publish_failed`.** The local note is kept and a write did not finish. In `test_unauthorized_account_does_not_append`, `authorized` is false, so the publisher calls `google_begin_authorization` with `docs.append` and `gmail.send`, stores `authorization_url`, and does not append. The operator opens that URL and runs publish again. `test_append_failure_does_not_send` stops on `ACCESS_DENIED` and never calls `gmail_send_email`. `test_send_failure_keeps_doc_url` keeps `doc_url` and leaves `message_id` empty. `test_missing_document_id_makes_no_tool_calls` stops with reason "document id is missing" and an empty tool list. `test_failed_run_is_not_published` stops a `failed` run before any tool call.
 - **`published`.** Append returns `status: appended`, then send returns `status: sent` and a `message_id`.
@@ -33,7 +34,8 @@ Rows removed by the privacy filter are a count, `rows_dropped`, on a run that ca
 | --- | --- |
 | Language | Python `>=3.11`. `.python-version` is `3.12`. Package `groww-pulse` `0.0.1`. |
 | Config | `config.yaml` via PyYAML `>=6`. `load_env_file` in `config.py` reads `.env` and leaves variables that are already set. |
-| Model | `claude-haiku-5-5` (`DEFAULT_MODEL` in `model.py`). `POST https://api.anthropic.com/v1/messages`, header `anthropic-version: 2023-06-01`, `max_tokens` 4096, `thinking.type` `disabled`, `output_config.effort` `low`. `PULSE_MODEL`, `PULSE_API_KEY`, and `PULSE_MODEL_BASE_URL` override the model, the key, and the host. The key otherwise is `ANTHROPIC_API_KEY`. |
+| Themes | scikit-learn `>=1.5`. Word and character TF-IDF, then logistic regression, trained on `theme_training.jsonl`. Five product themes. Praise with no product issue is `general_appreciation`. About 96% of the 1,423-review week is labeled. The rest is `unclassified`. |
+| Model | `claude-haiku-5-5` (`DEFAULT_MODEL` in `model.py`), used to write the note. `POST https://api.anthropic.com/v1/messages`, header `anthropic-version: 2023-06-01`, `max_tokens` 4096, `thinking.type` `disabled`, `output_config.effort` `low`. `PULSE_MODEL`, `PULSE_API_KEY`, and `PULSE_MODEL_BASE_URL` override the model, the key, and the host. The key otherwise is `ANTHROPIC_API_KEY`. |
 | Model transport | `urllib.request`. Timeout 120 seconds. Up to 8 attempts on HTTP 429 or 529, or on a URL error. A body containing `enforced_spend_limit_reached` stops immediately. |
 | Web | FastAPI `>=0.115` and uvicorn `>=0.32`. One static page, `src/groww_pulse/web/static/index.html`, with no Node build. The page polls `GET /api/weeks/{week}/job` every 800ms. `/api/*` sends `Cache-Control: no-store`. |
 | Tests | pytest `>=8` and httpx `>=0.27`. Tests pass a fake model client and a fake MCP client. |
@@ -45,7 +47,7 @@ Rows removed by the privacy filter are a count, `rows_dropped`, on a run that ca
 
 ![Weekly run and publish](docs/pipeline.png)
 
-The top row is one `run` for an ISO week: code filters the export, the model proposes a catalog and labels each review, and code ranks, checks, and writes the folder. The bottom row is `publish` on that saved `pulse.txt`. It reads the note and calls the hosted MCP tools. Yellow is a Messages API call. Green is the run folder, or the Doc URL and `message_id` after a send.
+The top row is one `run` for an ISO week: code filters the export, a local classifier labels each review, the model writes the note, and code ranks, checks, and writes the folder. The bottom row is `publish` on that saved `pulse.txt`. It reads the note and calls the hosted MCP tools. Yellow is a Messages API call. Green is the run folder, or the Doc URL and `message_id` after a send.
 
 ### The export is filtered in code before any model call
 
@@ -55,7 +57,7 @@ The top row is one `run` for an ISO week: code filters the export, the model pro
 
 `MIN_REVIEW_WORDS` is 8: a redacted body of eight words or fewer is dropped. Emoji are stripped first. A body with two or more non-Latin letters, or two or more whole-word hits from the romanized Hindi list (`_HINDI_MARKER_HITS`), is dropped. Emails, phone numbers, UUIDs, hex strings of 16 or more characters, and `@handles` are replaced with `[redacted]`.
 
-On the `2026-W41` file the implementation plan describes, 366 reviews are 9–12 words, so they clear this bar and are expected to fall through to `unclassified` at assignment. An eight-word review never reaches the catalog. That same file still has the name Ansh Agarwal in one body and the token `[redacted]` in two bodies. Those rows can be clustered. `quote_pool` in `compose.py` skips both, and a quote that copies either one fails the privacy check.
+On the `2026-W41` file the implementation plan describes, 366 reviews are 9–12 words, so they clear this bar. The classifier labels 1,365 of the 1,423 reviews. Praise with no product issue is `general_appreciation` (286). A complaint or nonsense body that names no product issue stays `unclassified` (58). An eight-word review never reaches the classifier. That same file still has the name Ansh Agarwal in one body and the token `[redacted]` in two bodies. Those rows can be clustered. `quote_pool` in `compose.py` skips both, and a quote that copies either one fails the privacy check.
 
 **Options set aside**
 
@@ -67,22 +69,21 @@ On the `2026-W41` file the implementation plan describes, 366 reviews are 9–12
 
 ### The catalog is frozen at five themes, then every review is labeled
 
-`cluster.py` holds the caps: `MAX_THEMES` is 5, `PULSE_THEME_COUNT` is 3, `BATCH_SIZE` is 30, and `SAMPLE_TARGETS` is 24 reviews rated 1, 12 rated 2–3, and 24 rated 4–5. The sample is round-robin across ISO weeks. The same reviews produce the same sample.
+`classify.py` holds the five themes: orders and trading; charts, speed, and stability; customer support; charges and brokerage; and payments, withdrawals, and mutual funds. The training examples fold IPO into orders, KYC and login into customer support, and statements into payments. Undifferentiated praise is `general_appreciation` and stays out of the note. `cluster.py` holds the caps: `MAX_THEMES` is 5 and `PULSE_THEME_COUNT` is 3. `test_catalog_larger_than_the_cap_stops_before_writing` stops when `max_themes` is 4, before `catalog.json` exists.
 
-`propose_catalog` allows one retry. A sixth theme, a bad id, a duplicate id, or an example phrase that is not a span of the sample is rejected. `test_six_theme_catalog_fails_after_one_retry` stops after that retry. `test_invented_example_phrase_still_fails` rejects a phrase that never appears. The catalog file is written before any assignment call. The assignment prompt receives that catalog and does not receive the seed list, which `test_four_theme_catalog_ranks_with_rating_tie_break` asserts. Reviews are sorted by id and sent 30 at a time. A missing id or a label outside the catalog is retried once for that review (`test_assignment_retries_a_bad_label_once_per_review`). The prompt tells the model that a review matching two themes takes the theme it spends more of its text on, so counts stay exclusive.
+`classify_texts` fits TF-IDF and logistic regression on `theme_training.jsonl` the first time it runs, then reuses the model. The same text returns the same label. Praise with no product issue is `general_appreciation`. A negative or nonsense body that matches no theme is `unclassified`. The catalog file is written before theme ids are stored on the reviews. A review that matches two themes takes the theme with the higher score, so counts stay exclusive.
 
 `rank_themes` orders by review count descending, then lower average rating, then a more recent median date (the upper median when the count is even), then theme id. The first three themes with at least one review become `top_theme_ids`. Themes four and five stay in `catalog.json`.
 
-The seeds in `SEED_HINTS` are orders and trading; charts, speed, and stability; customer support; charges and brokerage; and payments, withdrawals, and mutual funds. The catalog prompt says to fold KYC, statements, IPO, and login into the closest of those five, and that undifferentiated praise is not a theme. The model may rename, merge, or drop a seed.
-
-The cost shows up in the tie. In `test_four_theme_catalog_ranks_with_rating_tie_break`, Orders and trading and Charts and speed both have two reviews. Orders, at average rating 1, ranks first. Charts, at average rating 5, ranks second. Customer support and Charges each have one review at average rating 1. Customer support's review is dated 2026-10-01 and Charges' review is dated 2026-08-10, so the more recent median date keeps Customer support in the top three and leaves Charges in the catalog only. The implementation plan says that on the `2026-W41` file, support is both large and the lowest-rated cluster, so this rating order is what separates it from a similarly sized theme. A full week of 1,423 reviews is one catalog call and 48 assignment batches. A label outside the catalog fails that review after one retry.
+The tie is what the ranking is for when two themes have the same count. In `test_ranking_uses_count_then_rating_then_recency`, Orders and trading and Charts, speed, and stability both have two reviews. Orders, at average rating 1, ranks first. Charts, at average rating 5, ranks second. Customer support and Charges and brokerage each have one review at average rating 1. Customer support's review is dated 2026-10-01 and Charges' review is dated 2026-08-10, so the more recent median date keeps Customer support in the top three and leaves Charges in the catalog only. On the `2026-W41` file the counts are not tied: charts 321, orders 213, payments 205, support 202, charges 138. Support has the lowest average rating, 1.74, and stays fourth. A full week of 1,423 reviews is labeled locally. The model is called only when the note is written.
 
 **Options set aside**
 
 | Option | Why it was not chosen |
 | --- | --- |
-| The brief's seed list: onboarding, KYC, payments, statements, withdrawals | The implementation plan says the theme language in the `2026-W41` file does not match that list. `cluster.py` sends `SEED_HINTS` and tells the model to fold KYC, statements, IPO, and login into the closest seed. |
-| A new theme id invented during assignment | The architecture says assignment calls receive the frozen catalog and cannot add labels. A label outside the catalog is retried once, then `ClusterError` stops the run. |
+| The brief's seed list: onboarding, KYC, payments, statements, withdrawals | The implementation plan says the theme language in the `2026-W41` file does not match that list. The training examples fold KYC, statements, IPO, and login into the closest of the five fixed themes. |
+| Asking the model to name the themes each week | The themes would change every run, and a traditional classifier can only sort into categories it was already taught. |
+| A new theme id invented during assignment | The classifier returns one of the five ids, `general_appreciation`, or `unclassified`. |
 
 ### The composer sees 12 reviews from each highlighted theme
 
@@ -142,7 +143,7 @@ Copy `.env.example` to `.env` and set the keys you need. The CLI loads that file
 
 | Variable | Required | What it sets |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | For a live `run` | Messages API key. `PULSE_API_KEY` is accepted as an alias. |
+| `ANTHROPIC_API_KEY` | For a live `run` that reaches compose | Messages API key. Not used to label reviews. `PULSE_API_KEY` is accepted as an alias. |
 | `PULSE_MCP_TOKEN` | For a live `publish` against the hosted server | Bearer token. Sent only when set. |
 | `PULSE_MODEL` | No | Model name. Default `claude-haiku-5-5`. |
 | `PULSE_MODEL_BASE_URL` | No | API host. Default `https://api.anthropic.com`. |
@@ -203,8 +204,10 @@ src/groww_pulse/models.py           # Review, Theme, Quote, Action, Pulse
 src/groww_pulse/ingest/file_export.py  # CSV and JSON Play exports
 src/groww_pulse/normalize.py        # dates, ratings, duplicate ids
 src/groww_pulse/privacy.py          # redaction, word bar, English filter
-src/groww_pulse/model.py            # Anthropic Messages client
-src/groww_pulse/cluster.py          # sample, catalog, assignment, rank
+src/groww_pulse/model.py            # Anthropic Messages client, used by compose
+src/groww_pulse/classify.py         # fixed themes and the local classifier
+src/groww_pulse/theme_training.jsonl  # labeled reviews the classifier is trained on
+src/groww_pulse/cluster.py          # label with the classifier, then rank
 src/groww_pulse/compose.py          # quote pool, note, retries
 src/groww_pulse/checks.py           # the eight grounding rules
 src/groww_pulse/publish/publisher.py   # account, append, send, idempotency keys

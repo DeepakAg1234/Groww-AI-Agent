@@ -87,32 +87,31 @@ Phases 3–7 read `data/runs/2026-W41/reviews.jsonl`. That file is the clean han
 | Length | Median 20 words and 111 characters. 366 reviews are 9–12 words. Longest body is 101 words. 39 reviews sit at 490–500 characters and stop mid-sentence, which is the Play text cap |
 | Leftover text | 65 bodies still contain `₹`, danda, or dashes. Two contain the token `[redacted]`. One names a person in the body (`Ansh Agarwal`). No 10-digit phone remains |
 
-Theme language in the file does not match the early seed list (onboarding, KYC, payments, statements, withdrawals). Rough overlapping counts, from keyword hits, are orders and trading ~308, charts and speed ~214, customer support ~168 at about 1.5 stars, generic praise ~189 at about 4.4 stars, mutual funds and SIP ~84, charges ~71, payments and UPI ~57, KYC ~53, withdrawals ~49, IPO ~33, login ~30, statements ~22. Many reviews name two of these at once. About a quarter of the file is short praise or a short complaint with no product detail.
+Theme language in the file does not match the early seed list (onboarding, KYC, payments, statements, withdrawals). Rough overlapping counts, from keyword hits, are orders and trading ~308, charts and speed ~214, customer support ~168 at about 1.5 stars, generic praise ~189 at about 4.4 stars, mutual funds and SIP ~84, charges ~71, payments and UPI ~57, KYC ~53, withdrawals ~49, IPO ~33, login ~30, statements ~22. Many reviews name two of these at once. Those hits overlap, so they are not the labels. The classifier assigns each review once. On this file that is charts, speed, and stability 321; General Appreciation 286; orders and trading 213; payments, withdrawals, and mutual funds 205; customer support 202; charges and brokerage 138; and `unclassified` 58.
 
 ## Phase 3 — Cluster and rank
 
-**Goal.** The 1,423 reviews get a frozen catalog of at most five product themes, and the top three are chosen by the ranking rules. Undifferentiated praise stays `unclassified`.
+**Goal.** The 1,423 reviews get a frozen catalog of at most five product themes, and the top three are chosen by the ranking rules. Undifferentiated praise is `general_appreciation`. A complaint or nonsense body that matches no theme stays `unclassified`.
 
 **Build**
 
 - Read reviews from `data/runs/{week}/reviews.jsonl`. Do not open the raw export again.
-- A small model client interface used by cluster and, later, compose. Tests pass a fake client. The live client calls Anthropic's Messages API with model `claude-haiku-5-5` and `ANTHROPIC_API_KEY`. `PULSE_MODEL` overrides the model name.
-- Catalog step, one call. The prompt gets a sample of 60 reviews, not the full file: 24 rated 1, 12 rated 2–3, 24 rated 4–5, spread across W32–W41 so one heavy week does not define the catalog. Each sample row is `id`, `rating`, and `text`.
-- Seed hints in that prompt, which the model may rename, merge, or drop when the sample does not support them:
+- A small model client interface used by compose. Tests pass a fake client. The live client calls Anthropic's Messages API with model `claude-haiku-5-5` and `ANTHROPIC_API_KEY`. `PULSE_MODEL` overrides the model name. Clustering does not use this client.
+- Fixed catalog of five themes, trained into a local classifier rather than proposed from the week's sample:
   1. orders and trading
   2. charts, speed, and stability
   3. customer support
   4. charges and brokerage
   5. payments, withdrawals, and mutual funds
-- The same prompt tells the model to fold smaller topics in this file (KYC, statements, IPO, login) into the closest of those five. Undifferentiated praise ("nice app", "best app", "easy to use" with no product detail) is not a theme. A keyboard-mash body that survived the word filter is not a theme.
-- Parse the response into at most five themes, each with an id, name, definition, and two example phrases that appear in the sample. If the catalog still has more than five names after one retry, stop the run.
-- Freeze the catalog to `catalog.json` before assignment. Assignment prompts include that catalog only.
-- Assign in batches of 30. Each item sent is `id`, `rating`, and `text`. The response echoes every id with one catalog id or `unclassified`. A missing id, or a label outside the catalog, is retried once for that review only. A review that matches two themes takes the theme it spends more of its text on. Counts are exclusive.
-- Expect a large `unclassified` set. The 366 reviews of 9–12 words, plus generic praise, should land there. That is a successful catalog, and those rows stay out of ranking.
-- Rank catalog themes by review count descending, then lower average rating, then more recent median date. Keep the first three as `top_theme_ids`. Themes four and five stay in the catalog and stay out of the note. On this file, support is both large and the lowest-rated cluster, so the rating tie-break is what separates it from a similarly sized theme.
-- Write `theme_id` back onto each review, including `unclassified`.
+- The training examples fold smaller topics in this file into the closest of those five: IPO with orders, KYC and login with customer support, statements with payments. Undifferentiated praise ("nice app", "best app", "easy to use" with no product detail) is labeled `general_appreciation`. A keyboard-mash body, and a complaint that names no product issue, stay `unclassified`.
+- The classifier is word and character TF-IDF plus logistic regression, fit on `theme_training.jsonl` the first time a week is labeled. That file is the 1,423-review week with a label on each row. The same text always gets the same label. About 96% of those reviews receive a product theme or `general_appreciation`. Praise with no product issue is `general_appreciation`. A negative or nonsense body that matches no theme stays `unclassified`.
+- Freeze that catalog to `catalog.json` before labels are written. Each theme keeps an id, a name, a one-sentence definition, and two example phrases from the training examples.
+- Assign every review locally. There is no assignment request and no batch. A review that matches two themes takes the theme the model gives more weight. Counts are exclusive. If `max_themes` is below five, stop before writing `catalog.json`.
+- Expect 286 `general_appreciation` reviews on this file. Generic praise with no product detail lands there and stays out of ranking. `unclassified` is the remainder of 58: nonsense, and complaints that name no theme.
+- Rank catalog themes by review count descending, then lower average rating, then more recent median date. Keep the first three as `top_theme_ids`. Themes four and five stay in the catalog and stay out of the note. On this file the count order is charts 321, orders 213, payments 205, support 202, charges 138. Support has the lowest average rating, 1.74, and stays fourth because it has fewer reviews than payments.
+- Write `theme_id` back onto each review, including `general_appreciation` and `unclassified`.
 
-**Exit.** A fake model that returns six themes fails the run after one retry. A fake model that returns four themes writes a frozen catalog and a stable top three, including a tie broken by average rating. Batched assignment joins every id back onto `reviews.jsonl`. `unclassified` reviews are stored and excluded from ranking. Unit tests use a few dozen synthetic reviews, not the 1,423-row file.
+**Exit.** A `max_themes` below five fails the run before `catalog.json` exists, and review labels stay blank. A normal run writes the five-theme catalog and a stable top three. Every review in `reviews.jsonl` has a theme id. `general_appreciation` and `unclassified` are stored and excluded from ranking. Unit tests use a few dozen synthetic reviews, not the 1,423-row file. The synthetic tie, broken by average rating and then by date, is `test_ranking_uses_count_then_rating_then_recency`.
 
 ## Phase 4 — Compose the note
 
@@ -122,7 +121,7 @@ Theme language in the file does not match the early seed list (onboarding, KYC, 
 
 - For each top theme, pass the name, exclusive review count, and average rating, plus a quote pool of at most 12 reviews from that theme. Build the pool in code: prefer 15–80 words and a sentence that ends inside the stored text; spread the pool across ratings; skip a body cut at the 500-character cap when the theme still has a complete alternative; skip any body that contains `[redacted]` or a personal name.
 - The model returns theme summaries, exactly three quotes, and exactly three actions. Each quote includes `review_id` and a span copied from that review's stored `text`. Prefer one quote per top theme. A quote may be the entire short review. It may contain `₹` and other characters that privacy left in place. It must not finish a sentence the Play cap cut off, and it must not include a person's name.
-- Each action names its theme and states a product, support, or messaging next step grounded in that theme's pool. On this file those steps should be readable as support, trading or charts, charges, or money movement, because those are the themes the catalog is allowed to contain.
+- Each action names its theme and states a product, support, or messaging next step grounded in that theme's pool. On this file the top three are charts, orders, and payments, so those steps should be readable as charts and speed, trading, and money movement. Support and charges stay in the catalog.
 - Render `pulse.txt` in the order from architecture section 5.5: title and week, volume sentence, three themes, three quotes with star rating and Play package, three actions. The volume sentence uses the kept count (1,423 on this week) and the share of reviews in the top three exclusive assignments.
 - Extend the privacy check with one fixture: a quote that copies a personal name out of an otherwise clean review fails, as does a quote that contains `[redacted]`.
 - Run grounding checks. On failure, call the composer again with the failed rule and the rejected text. Allow two retries. Keep the three quote strings intact when the only failure is length; shorten summaries and actions instead.
@@ -137,10 +136,10 @@ Theme language in the file does not match the early seed list (onboarding, KYC, 
 **Build**
 
 - `python -m groww_pulse run --week YYYY-Www` executes ingest, normalize, privacy, cluster, rank, compose, and checks.
-- Refresh `data/runs/{week}/reviews.jsonl` through `write_clean_reviews` before any model call, so `theme_id` starts empty again, then write `catalog.json`, `pulse.json`, `pulse.txt`, and `manifest.json` beside it.
-- Manifest records: week, window start and end, rows read / kept / dropped, per-theme counts, `unclassified_count`, check results, and status `ready`. For 2026-W41 the kept count is 1,423 and `unclassified_count` is expected to be in the hundreds.
-- Live call shape for that file: one catalog call, assignment in batches of 30 (48 batches for 1,423 reviews), then one compose call plus at most two retries. Tests still inject a fake client and make zero live calls.
-- Stop before any model call when the window has no reviews. Manifest status is `no_reviews` and names the empty export.
+- Refresh `data/runs/{week}/reviews.jsonl` through `write_clean_reviews` before classification, so `theme_id` starts empty again, then write `catalog.json`, `pulse.json`, `pulse.txt`, and `manifest.json` beside it.
+- Manifest records: week, window start and end, rows read / kept / dropped, per-theme counts, `general_appreciation_count`, `unclassified_count`, check results, and status `ready`. For 2026-W41 the kept count is 1,423, `general_appreciation_count` is 286, and `unclassified_count` is 58.
+- Live call shape for that file: local classification of all 1,423 reviews, then one compose call plus at most two retries. Tests still inject a fake client and make zero live calls. The fake client is not asked to label reviews.
+- Stop before classification and before any model call when the window has no reviews. Manifest status is `no_reviews` and names the empty export.
 - Stop before publish when fewer than three themes have at least one review. Manifest status is `short_catalog`. A large unclassified set does not trigger this; only a catalog with fewer than three non-empty themes does. This week's file should reach `ready`.
 - `publish --week` reads the existing run folder and, until Phase 6, exits with a clear "publisher not configured" message. It does not recluster.
 
@@ -150,7 +149,7 @@ Theme language in the file does not match the early seed list (onboarding, KYC, 
 
 **Goal.** The ready local pulse for this week is appended to an existing Google Doc and sent as plain-text mail. The published body is the ~250-word note, not the 1,423 reviews. The pipeline still has no Google REST client and no OAuth code.
 
-**Server.** [google-workspace-mcp](https://github.com/DeepakAg1234/MCP-Server) 0.2.0 over Streamable HTTP at `https://mcp-server-production-af95.up.railway.app/mcp`. The process listens on port 8080; the client uses the HTTPS URL. Tool names and schemas match the README on both stdio and HTTP. The MCP client is already authenticated. This repo does not store a bearer token, a Google refresh token, or a client secret.
+**Server.** [google-workspace-mcp](https://github.com/DeepakAg1234/MCP-Server) 0.2.0 over Streamable HTTP at `https://mcp-server-production-af95.up.railway.app/mcp`. The process listens on port 8080; the client uses the HTTPS URL. Tool names and schemas match the README on both stdio and HTTP. The live client sends `PULSE_MCP_TOKEN` as a bearer when that variable is set. The token, a Google refresh token, and a client secret are not written into the repo.
 
 The README exposes five tools, in this order. Publish uses them as follows:
 
@@ -191,7 +190,7 @@ Every result uses the README envelope. Read `structuredContent`, which matches t
 
 **Run**
 
-1. Smoke run: cluster a slice of about 150 reviews drawn from this file, with lows and highs both present, enough to freeze three themes. Confirm assignment is batched and `unclassified` is used for short praise.
+1. Smoke run: cluster a slice of about 150 reviews drawn from this file, with lows and highs both present, enough for three themes to have reviews. Confirm labels come from the local classifier, short praise is `general_appreciation`, and `unclassified` is only the reviews that name no theme.
 2. Full run with `window_weeks` at 10 for `2026-W41`, then confirm 8 and 12 also load. The 10-week window is 2026-08-03 through 2026-10-11.
 3. Read the Doc and the sent Gmail message against the checklist below.
 
@@ -201,7 +200,7 @@ Every result uses the README envelope. Read `structuredContent`, which matches t
 | --- | --- |
 | Play reviews, last 8–12 weeks | Manifest window is 2026-08-03 through 2026-10-11, kept count is 1,423, and cited quotes fall inside the window |
 | At most five themes | `catalog.json` has 1–5 themes, named from product issues in this file (support, charts and speed, orders, charges, payments and withdrawals, mutual funds) |
-| Praise stays out of the note | No top theme is undifferentiated praise, and `unclassified_count` is recorded |
+| Praise stays out of the note | No top theme is General Appreciation. `general_appreciation_count` is 286 and `unclassified_count` is 58 |
 | Top three in the note | The note names only `top_theme_ids`, with exclusive counts |
 | Three verbatim quotes | Each quote is a span of its `review_id` in `reviews.jsonl`, taken from the stored text even when that text is short or contains `₹` |
 | Three grounded actions | Each action names one top theme |
@@ -222,13 +221,15 @@ Every result uses the README envelope. Read `structuredContent`, which matches t
 
 - Add FastAPI and uvicorn to `pyproject.toml`.
 - `src/groww_pulse/web/app.py` serves one page and a small JSON API. `src/groww_pulse/web/jobs.py` runs one week in the background. `src/groww_pulse/web/static/index.html` is the page, with no Node build.
-- CLI entry: `python -m groww_pulse serve`. Bind `127.0.0.1` only. Default port is 8000.
+- CLI entry: `python -m groww_pulse serve`. `--host` defaults to `127.0.0.1`. `--port` defaults to 8000. Railway passes `--host 0.0.0.0` and `--port` from `PORT`.
+- Send `Cache-Control: no-store` on `/api/*`. The page polls job state every 800ms.
 - Read endpoints look only at `data/runs/{week}/`. They do not open `data/raw/`.
   - `GET /api/weeks` lists each week that has a `manifest.json`, newest week first.
   - `GET /api/weeks/{week}` returns the manifest, the catalog, `pulse.json`, and `pulse.txt` when those files exist. From `reviews.jsonl`, add the kept count and the count of ratings 1 through 5. A missing week returns an empty run, not an error, so the operator can type a week that has not been run yet.
+- When `PULSE_API_TOKEN` is set, `POST /api/weeks/{week}/run` and `POST /api/weeks/{week}/publish` require `Authorization: Bearer <token>`. Leave the variable unset for local `serve`. The GET routes stay open.
 - `POST /api/weeks/{week}/run` checks the week string, then starts one background job for that week. The job calls `run_week`. It calls `publish_week` only when the manifest status is `ready`. While the job is running, the same week rejects a second start. The page polls `GET /api/weeks/{week}/job` until the job finishes, then reloads the week.
-- `POST /api/weeks/{week}/publish` calls `publish_week` only, for a saved pulse whose status is `ready` or `publish_failed`. Use this after the operator opens `authorization_url`. It does not recluster.
-- The page has a week field, **Run this week**, and **Publish saved note**. It shows manifest status and reason, the authorization link when present, `doc_url`, and `message_id`. Below that: kept count, rating split, unclassified count, the five catalog themes with the top three marked, the three quotes with star ratings, the three actions, and the plain-text note.
+- `POST /api/weeks/{week}/publish` calls `publish_week` only, for a saved pulse whose status is `ready` or `publish_failed`. Use this after the operator opens `authorization_url`. It does not recluster. A week already `published` is rejected and does not call the model.
+- The page has a week field, **Run this week**, and **Publish saved note**. It shows manifest status and reason, the authorization link when present, `doc_url`, and `message_id`. Below that: kept count, rating split, General Appreciation count, unclassified count, the five catalog themes with the top three marked, General Appreciation beside them when the catalog records it, the three quotes with star ratings, the three actions, and the plain-text note.
 - Stop the job display on the statuses the pipeline already writes:
 
 | Status after the run | What the page does |
@@ -242,7 +243,7 @@ Every result uses the README envelope. Read `structuredContent`, which matches t
 
 - Tests use FastAPI's test client and the same fake model and MCP clients as Phases 3–6. A test run writes a fixture week and makes zero live model or MCP calls. One test starts a job and asserts publish is skipped when the run status is `no_reviews`. One test asserts a second start for the same week is rejected while the first job is running.
 
-**Exit.** `python -m groww_pulse serve` opens the page on localhost. The page renders the published `2026-W41` run: 1,423 kept reviews, five themes, 548 unclassified, three quotes, three actions, and status `published`. **Run this week** on a fixture week finishes in the background and leaves a manifest. **Publish saved note** does not call the model.
+**Exit.** `python -m groww_pulse serve` opens the page on localhost. The page renders the saved `2026-W41` run: 1,423 kept reviews, five themes, three quotes, three actions, and status `published`. A fresh classification of that file, which the saved folder does not yet show, is 286 General Appreciation and 58 unclassified. **Run this week** on a fixture week finishes in the background and leaves a manifest. **Publish saved note** does not call the model. With `PULSE_API_TOKEN` unset, local Run and Publish do not send the bearer header.
 
 ## Out of this plan
 

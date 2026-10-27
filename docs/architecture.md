@@ -57,7 +57,7 @@ Additional Groww Play packages (Stocks, Mutual Fund, IPO) are configuration, not
 ## 3. Design principles
 
 - **MCP at the edge.** Docs and Gmail stay behind a thin publisher. Swapping MCP servers does not change clustering or the pulse format.
-- **Deterministic gates around the model.** Theme count, quote verbatim checks, word count, and PII stripping are code. The model proposes themes, summaries, quotes, and actions. Code accepts or rejects them.
+- **Deterministic gates around the model.** Theme count, quote verbatim checks, word count, and PII stripping are code. A local classifier assigns themes. The model writes summaries, quotes, and actions. Code accepts or rejects the note.
 - **Public Play exports only.** Ingest reads Google Play export files the operator places in the repo. The pipeline does not log into the Play Store and does not scrape store pages.
 - **Anonymous by construction.** Reviewer names, profile URLs, and device identifiers are dropped at ingest and never enter the model prompt or the published note.
 - **One run, one week, one note.** A run is keyed by ISO week and app set. Re-running that week refreshes the local artifact. Publishing the same `pulse.txt` again does not append or send a second time. A changed note appends another copy to the same document and sends again.
@@ -65,7 +65,7 @@ Additional Groww Play packages (Stocks, Mutual Fund, IPO) are configuration, not
 
 ## 4. Runtime shape
 
-A single Python command runs the week. Stages are plain functions with typed inputs and outputs. There is no database, queue, or web app. Local JSON artifacts are the record of what was published.
+A single Python command runs the week. Stages are plain functions with typed inputs and outputs. There is no database or queue. Local JSON artifacts are the record of what was published. `python -m groww_pulse serve` hosts one page over those artifacts. The default bind is `127.0.0.1`. `--host 0.0.0.0` is for the Railway process.
 
 ```text
 python -m groww_pulse run --week 2026-W41
@@ -78,12 +78,12 @@ Stages, in order:
 | Ingest | Read configured Play Store exports | Stop if no reviews fall inside the window |
 | Normalize | Map every source into one `Review` record | Drop rows with no text; record the drop count |
 | Privacy | Remove identifiers; redact PII inside text | Drop a review if redaction leaves no usable text |
-| Cluster | Assign each review to one of at most five themes | Retry once with a frozen catalog; stop if a sixth theme remains |
+| Cluster | Assign each review to one of five fixed themes | Stop if that catalog is larger than `max_themes` |
 | Rank | Order themes and choose the top three | Stop if fewer than three themes have at least one review |
 | Compose | Draft the note, three quotes, three actions | Regenerate when a grounding check fails, up to two times |
 | Publish | Append the note to the configured Doc, then send it | Write the local pulse first. If the append fails, do not send. |
 
-The model is used in Cluster and Compose only. Ingest, privacy, ranking, grounding, and publish are deterministic.
+The language model is used in Compose only. Cluster assigns themes with a local classifier. Ingest, privacy, ranking, grounding, and publish are deterministic.
 
 ## 5. Components
 
@@ -143,12 +143,12 @@ Redaction replaces the span with `[redacted]`. A review whose body is empty afte
 
 ### 5.4 Theme clustering
 
-Clustering is closed-set classification with a hard cap of five themes.
+Clustering is closed-set classification into a fixed catalog of five themes. The catalog does not change from week to week, and the language model is not asked to invent or assign themes.
 
-1. **Catalog.** The model sees a stratified sample of the window (high, mid, and low ratings) plus the domain seeds from the brief: onboarding, KYC, payments, statements, withdrawals. It returns at most five themes. Each theme has a short name, a one-sentence definition, and two example phrases taken from the sample. Seeds are hints. The catalog may rename or replace a seed when the reviews support a better label.
-2. **Freeze.** The catalog is written to the run manifest. Later assignment calls receive this catalog and cannot add labels.
-3. **Assign.** Each review is assigned exactly one theme id from the catalog. Reviews that match none are `unclassified`. Unclassified does not count as a sixth theme and does not appear in the pulse.
-4. **Validate.** If any assignment label is outside the catalog, that review is retried once. A catalog that still exceeds five names fails the run.
+1. **Catalog.** The five themes are orders and trading; charts, speed, and stability; customer support; charges and brokerage; and payments, withdrawals, and mutual funds. Each theme has a stable id, a short name, a one-sentence definition, and two example phrases. Smaller topics in this file are folded into the closest of those five: IPO into orders, KYC and login into customer support, and statements into payments. Praise is recorded separately as General Appreciation. Keyboard mash is not a theme.
+2. **Freeze.** That catalog is written to the run folder before any review is labeled. Labels cannot add a sixth theme.
+3. **Assign.** A TF-IDF vectorizer and a logistic regression model, trained once on the labeled reviews in `theme_training.jsonl`, assign each review to exactly one theme id. On the 1,423-review week that file was built from, 1,365 reviews (about 96%) receive a label: charts, speed, and stability 321; General Appreciation 286; orders and trading 213; payments, withdrawals, and mutual funds 205; customer support 202; charges and brokerage 138. The other 58 stay `unclassified`. Praise that names no product issue is `general_appreciation`. A complaint or a nonsense body that matches no theme stays `unclassified`. Neither label counts as a sixth theme, and neither appears in the pulse. Count order puts charts, orders, and payments in the top three. Support has the lowest average rating (1.74) and stays fourth because it has fewer reviews than payments.
+4. **Validate.** The classifier only returns a catalog id, `general_appreciation`, or `unclassified`. A configured `max_themes` below five stops the run before the catalog file is written.
 
 Ranking inside the catalog:
 
@@ -213,7 +213,7 @@ Each write uses an idempotency key, `pulse-{week}-doc-{hash}` or `pulse-{week}-m
 
 Every tool result is one envelope: `ok`, `operation_id`, `tool`, and either `result` plus `warnings` or `error`. The publisher reads `structuredContent`. It retries only when `error.retryable` is true.
 
-The MCP client is already authenticated in the environment. The app does not store a bearer token, a Google refresh token, or a client secret.
+The live client sends `PULSE_MCP_TOKEN` as a bearer when that variable is set. `PULSE_MCP_URL` overrides the hosted endpoint. The token, a Google refresh token, and a client secret are not written into the repo.
 
 If the append fails, Gmail is not called. If the append succeeds and send fails, the manifest keeps `doc_url` and status `publish_failed`. A later `publish` retries from the saved pulse. The same `pulse.txt` does not append or send again. A changed note uses new keys, appends another copy, and sends again.
 
@@ -235,7 +235,7 @@ data/runs/2026-W41/
 ```json
 {
   "week": "2026-W41",
-  "window": { "start": "2026-08-03", "end": "2026-10-09" },
+  "window": { "start": "2026-08-03", "end": "2026-10-11" },
   "review_count": 0,
   "themes": [
     {
@@ -290,7 +290,7 @@ target_words: 250
 max_words: 280
 ```
 
-`email_to` may also be set with `PULSE_EMAIL_TO`, which overrides the file. `doc_id` may also be set with `PULSE_DOC_ID`. Cluster and compose call Anthropic's Messages API at `https://api.anthropic.com/v1/messages` with model `claude-haiku-5-5`. The key is `ANTHROPIC_API_KEY`. `PULSE_MODEL`, `PULSE_API_KEY`, and `PULSE_MODEL_BASE_URL` override the model, the key, and the host.
+`email_to` may also be set with `PULSE_EMAIL_TO`, which overrides the file. `doc_id` may also be set with `PULSE_DOC_ID`. Compose calls Anthropic's Messages API at `https://api.anthropic.com/v1/messages` with model `claude-haiku-5-5`. The key is `ANTHROPIC_API_KEY`. `PULSE_MODEL`, `PULSE_API_KEY`, and `PULSE_MODEL_BASE_URL` override the model, the key, and the host. Clustering does not call that API.
 
 ## 8. Repository layout
 
@@ -302,21 +302,32 @@ data/
   raw/                    # operator-supplied public exports; not committed
   runs/                   # generated artifacts; not committed
 src/groww_pulse/
-  __main__.py             # `run` and `publish`
+  __main__.py             # `run`, `publish`, and `serve`
   config.py
   models.py               # Review, Theme, Pulse
+  model.py                # Anthropic Messages client
+  classify.py             # fixed themes and the local classifier
+  theme_training.jsonl    # labeled reviews the classifier is trained on
+  weeks.py
   ingest/
     file_export.py
   normalize.py
   privacy.py
-  cluster.py
+  cluster.py              # label with the classifier, then rank
   compose.py
   checks.py
   publish/
+    mcp.py                # Streamable HTTP client
+    publisher.py
     docs.py               # Docs MCP protocol
     gmail.py              # Gmail MCP protocol
   pipeline.py
+  web/
+    app.py                # page and JSON API
+    jobs.py               # one background week job
+    static/index.html
 config.yaml
+vercel.json               # static page and /api rewrite
 ```
 
 `data/raw/` and `data/runs/` are gitignored. Exports can contain review text the team did not mean to commit, and run artifacts are regenerated.
@@ -333,10 +344,7 @@ sequenceDiagram
   Op->>Pipe: run --week 2026-W41
   Pipe->>Pipe: Ingest Play Store exports
   Pipe->>Pipe: Normalize, dedupe, redact PII
-  Pipe->>Model: Propose at most 5 themes
-  Model-->>Pipe: Catalog
-  Pipe->>Model: Assign each review to the catalog
-  Model-->>Pipe: Theme ids
+  Pipe->>Pipe: Assign each review with the local classifier
   Pipe->>Pipe: Rank and keep top 3
   Pipe->>Model: Compose note, 3 quotes, 3 actions
   Model-->>Pipe: Pulse
@@ -358,7 +366,7 @@ sequenceDiagram
 - Store access is limited to public Google Play review exports.
 - The pipeline has no store login, session cookie, or developer-console credential.
 - Reviewer identity is not a field on `Review`.
-- Prompts include redacted review text only. They do not include file paths that might embed a username, and they do not include the operator's email.
+- Classification reads the redacted review text locally and does not send it to a model. Compose prompts include that same redacted text only. They do not include file paths that might embed a username, and they do not include the operator's email.
 - The Gmail message is addressed to the configured operator alias. It contains the pulse and the Doc link, not the raw review file.
 - Logs record counts and ids. They do not record full review bodies.
 
@@ -366,9 +374,9 @@ sequenceDiagram
 
 | Situation | Result |
 | --- | --- |
-| No reviews in the window | Run stops before any model call. Manifest explains which Play exports were empty. |
-| Model returns more than five themes | Catalog step retries once with an explicit cap. A second violation stops the run. |
-| Fewer than three themes have reviews | Run stops before publish. Manifest lists the short catalog. |
+| No reviews in the window | Run stops before classification and before any model call. Manifest explains which Play exports were empty. |
+| `max_themes` is below the fixed catalog | Run stops before `catalog.json` is written. |
+| Fewer than three themes have reviews | Run stops before compose. Manifest lists the short catalog. |
 | Quote fails the verbatim check | Composer retries with the rejected quote and the source review. Two failures stop publish. |
 | Account missing or not authorized | Local `pulse.txt` is kept. Manifest status is `publish_failed` and includes `authorization_url` when the server returned one. No append or send runs. |
 | Append fails | Local pulse is kept. Status is `publish_failed`. Gmail is not called. |
@@ -382,7 +390,7 @@ sequenceDiagram
 | --- | --- |
 | Last 8–12 weeks of reviews | `window_weeks` and the ingest date filter |
 | Fields such as rating, title, text, date | `Review` model |
-| At most five themes | Catalog validator |
+| At most five themes | Fixed catalog in `classify.py` and the `max_themes` cap |
 | Pulse highlights the top three | Rank stage and grounding check |
 | Three real user quotes, verbatim | Composer plus verbatim check against `reviews.jsonl` |
 | Three action ideas grounded in the themes | Composer schema and theme-name check |

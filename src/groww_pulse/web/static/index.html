@@ -21,6 +21,7 @@
       --warning-tint: #FDEDE6;
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     body {
       margin: 0;
       min-height: 100vh;
@@ -84,9 +85,22 @@
     button.secondary { background: var(--groww-tint); color: var(--groww); }
     button.secondary:hover { background: #d6f2e8; }
     button:disabled { opacity: 0.55; cursor: progress; }
-    #message { min-height: 1.5em; margin: 12px 0 0; color: var(--warning); }
+    #message {
+      min-height: 1.5em;
+      margin: 12px 0 0;
+      color: var(--secondary);
+    }
+    #message.problem { color: var(--warning); font-weight: 600; }
+    .activity {
+      margin: 16px 0 0;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--groww-tint);
+      color: var(--groww-pressed);
+      font-weight: 600;
+    }
     .card {
-      margin-top: 24px;
+      margin-top: 16px;
       padding: 24px;
       background: var(--card);
       border: 1px solid var(--hairline);
@@ -104,10 +118,17 @@
     .run-head {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
       padding-bottom: 16px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       border-bottom: 1px solid var(--hairline);
+    }
+    .week-shown {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
     }
     .pill {
       display: inline-flex;
@@ -119,11 +140,33 @@
       font-size: 13px;
       font-weight: 600;
     }
+    .pill.neutral { background: var(--page); color: var(--secondary); }
     .pill.warn { background: var(--warning-tint); color: var(--warning); }
-    .status-copy { margin: 0 0 20px; }
-    .fact { display: flex; align-items: baseline; gap: 0; margin-top: 12px; font-size: 14px; }
+    .status-copy { margin: 0; }
+    .reason { margin: 8px 0 0; color: var(--secondary); }
+    .next-block { margin-top: 16px; }
+    .next-action {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: var(--groww);
+      color: white;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .next-action:hover { background: var(--groww-pressed); }
+    .next-copy { margin: 16px 0 0; font-weight: 600; }
+    .next-url {
+      margin: 8px 0 0;
+      color: var(--secondary);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .fact { display: flex; align-items: baseline; gap: 12px; margin-top: 12px; font-size: 14px; }
     .fact-label { width: 140px; flex: none; color: var(--secondary); }
-    .fact-value { font-weight: 500; }
+    .fact-value { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
     a { color: var(--groww); font-weight: 500; overflow-wrap: anywhere; }
     .mono {
       padding: 2px 8px;
@@ -134,7 +177,7 @@
       font-size: 13px;
       font-weight: 400;
     }
-    .reviews-head { display: flex; align-items: center; justify-content: space-between; }
+    .reviews-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .kept { color: var(--secondary); font-size: 13px; font-weight: 500; }
     .bar-row {
       display: grid;
@@ -149,17 +192,20 @@
     .track { height: 8px; background: var(--page); border-radius: 999px; overflow: hidden; }
     .fill { height: 100%; background: var(--groww); border-radius: 999px; }
     .theme, .action {
+      padding: 14px 0;
+      border-top: 1px solid var(--hairline);
+      font-size: 15px;
+    }
+    .theme:first-child, .action:first-child, .check:first-child { border-top: 0; padding-top: 4px; }
+    .theme-row, .check-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 14px 0;
-      border-top: 1px solid var(--hairline);
-      font-size: 15px;
-      font-weight: 500;
     }
-    .theme:first-child, .action:first-child { border-top: 0; padding-top: 4px; }
-    .theme-meta { display: flex; align-items: center; gap: 12px; color: var(--secondary); font-size: 14px; font-weight: 400; }
+    .theme-name { font-weight: 500; }
+    .theme-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--secondary); font-size: 14px; }
+    .theme-extra { margin: 6px 0 0; color: var(--secondary); font-size: 14px; line-height: 1.5; }
     .top {
       padding: 2px 8px;
       border-radius: 4px;
@@ -170,10 +216,12 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
-    .quote { margin: 20px 0 0; padding: 2px 0 2px 16px; border-left: 3px solid var(--groww); }
+    .quote { margin: 0; padding: 16px 0 16px 16px; border-top: 1px solid var(--hairline); border-left: 3px solid var(--groww); }
+    .quote:first-child { border-top: 0; }
     .quote p { margin: 0; line-height: 1.6; }
     .quote .meta {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       align-items: center;
       margin-top: 6px;
@@ -182,19 +230,41 @@
       font-weight: 400;
     }
     .stars { color: var(--groww); letter-spacing: 0.12em; }
-    .theme-id { font-family: ui-monospace, monospace; font-size: 12px; }
-    .action { display: block; font-weight: 400; line-height: 1.6; }
-    #note { padding: 32px; }
+    .theme-id, .check-rule { font-family: ui-monospace, monospace; font-size: 12px; }
+    .action { font-weight: 400; line-height: 1.6; }
+    .action-theme { display: block; margin-top: 4px; color: var(--secondary); font-family: ui-monospace, monospace; font-size: 12px; }
+    .check { padding: 12px 0; border-top: 1px solid var(--hairline); }
+    .check.pass .check-state { color: var(--groww); font-weight: 600; }
+    .check.fail .check-state { color: var(--warning); font-weight: 600; }
+    .check-detail { margin: 6px 0 0; color: var(--ink); }
+    #note {
+      margin-top: 16px;
+      padding: 32px;
+      border-top: 4px solid var(--groww);
+    }
+    .note-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     #note-text {
       margin: 16px 0 0;
       white-space: pre-wrap;
       font-family: Newsreader, Georgia, serif;
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 400;
       line-height: 1.7;
     }
     .empty { margin: 0; color: var(--secondary); }
     ul { list-style: none; margin: 12px 0 0; padding: 0; }
+    @media (max-width: 640px) {
+      body { padding: 24px 16px; }
+      header h1 { font-size: 28px; }
+      form { flex-direction: column; align-items: stretch; }
+      label, button, .next-action { width: 100%; }
+      .next-action { justify-content: center; }
+      .run-head, .note-head, .theme-row, .reviews-head { align-items: flex-start; flex-direction: column; }
+      .fact { flex-direction: column; gap: 2px; }
+      .fact-label { width: auto; }
+      #note { padding: 20px; }
+      .bar-row { grid-template-columns: 52px minmax(0, 1fr) 32px; gap: 8px; }
+    }
   </style>
 </head>
 <body>
@@ -211,14 +281,34 @@
         <button type="button" class="secondary" id="publish">Publish saved note</button>
       </form>
       <p id="message" role="status"></p>
+      <p id="activity" class="activity" hidden></p>
     </header>
 
     <section id="summary" class="card" hidden>
       <div class="run-head">
-        <h2>Run</h2>
+        <p id="week-shown" class="week-shown"></p>
         <span id="status-pill" class="pill" hidden></span>
       </div>
       <p id="status-copy" class="status-copy"></p>
+      <p id="reason" class="reason" hidden></p>
+      <div id="next"></div>
+    </section>
+
+    <section id="note" class="card" hidden>
+      <div class="note-head">
+        <h2>Note</h2>
+        <a id="doc-link" hidden target="_blank" rel="noreferrer">Open document</a>
+      </div>
+      <pre id="note-text"></pre>
+    </section>
+
+    <section id="checks" class="card" hidden>
+      <h2>Checks</h2>
+      <ul id="check-list"></ul>
+    </section>
+
+    <section id="record" class="card" hidden>
+      <h2>Run record</h2>
       <div id="facts"></div>
     </section>
 
@@ -244,11 +334,6 @@
       <h2>Actions</h2>
       <ul id="action-list"></ul>
     </section>
-
-    <section id="note" class="card" hidden>
-      <h2>Note</h2>
-      <pre id="note-text"></pre>
-    </section>
   </main>
   <script>
     const STATUS_NOTE = {
@@ -259,9 +344,11 @@
       failed: "A model call or a grounding check failed.",
       publish_failed: "The local note is kept. Open the authorization link, then publish the saved note."
     };
-    const QUIET = new Set(["published", "ready"]);
+    const PROBLEM = new Set(["failed", "publish_failed"]);
+    const SETTLED = new Set(["no_reviews", "short_catalog"]);
     const weekInput = document.querySelector("#week");
     const message = document.querySelector("#message");
+    const activity = document.querySelector("#activity");
     const runButton = document.querySelector("#run");
     const publishButton = document.querySelector("#publish");
     let token = 0;
@@ -284,78 +371,177 @@
       publishButton.disabled = busy;
     }
 
+    function setMessage(text, problem) {
+      message.textContent = text;
+      message.className = problem ? "problem" : "";
+    }
+
     function showJob(job) {
       if (job.state === "running") {
-        message.textContent = "Running " + job.week + "…";
+        activity.hidden = false;
+        activity.textContent = "Running " + job.week + "…";
+        setMessage("", false);
         setBusy(true);
         return;
       }
+      activity.hidden = true;
       setBusy(false);
       if (job.error) {
-        message.textContent = job.error;
+        setMessage(job.error, true);
         return;
       }
       if (job.state === "finished") {
-        message.textContent = job.status;
+        setMessage("", false);
+      }
+    }
+
+    function present(value) {
+      return value !== undefined && value !== null && value !== "";
+    }
+
+    function actionLink(href, label) {
+      const wrap = document.createElement("div");
+      wrap.className = "next-block";
+      const link = document.createElement("a");
+      link.className = "next-action";
+      link.href = href;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.textContent = label;
+      const url = document.createElement("p");
+      url.className = "next-url";
+      url.textContent = href;
+      wrap.append(link, url);
+      return wrap;
+    }
+
+    function renderNext(manifest) {
+      const next = document.querySelector("#next");
+      next.replaceChildren();
+      if (!manifest) return;
+      const status = manifest.status || "";
+      if (status === "publish_failed" && manifest.authorization_url) {
+        next.append(actionLink(manifest.authorization_url, "Open authorization"));
+        return;
+      }
+      if (status === "ready") {
+        const copy = document.createElement("p");
+        copy.className = "next-copy";
+        copy.textContent = "Publish the saved note.";
+        next.append(copy);
+        return;
+      }
+      if (manifest.doc_url) {
+        next.append(actionLink(manifest.doc_url, "Open document"));
+      }
+    }
+
+    function renderFacts(manifest) {
+      const section = document.querySelector("#record");
+      const list = document.querySelector("#facts");
+      list.replaceChildren();
+      if (!manifest) {
+        section.hidden = true;
+        return;
+      }
+      const windowText = manifest.window && manifest.window.start && manifest.window.end
+        ? manifest.window.start + " – " + manifest.window.end
+        : "";
+      const facts = [
+        ["Window", windowText, "text"],
+        ["Rows read", manifest.rows_read, "text"],
+        ["Rows kept", manifest.rows_kept, "text"],
+        ["Rows dropped", manifest.rows_dropped, "text"],
+        ["General Appreciation", manifest.general_appreciation_count, "text"],
+        ["Unclassified", manifest.unclassified_count, "text"],
+        ["Message", manifest.message_id || "", "mono"]
+      ];
+      for (const [label, value, kind] of facts) {
+        if (!present(value)) continue;
+        const row = document.createElement("div");
+        row.className = "fact";
+        const name = document.createElement("span");
+        name.className = "fact-label";
+        name.textContent = label;
+        const detail = document.createElement("span");
+        detail.className = "fact-value";
+        if (kind === "mono") {
+          const code = document.createElement("span");
+          code.className = "mono";
+          code.textContent = String(value);
+          detail.append(code);
+        } else {
+          detail.textContent = String(value);
+        }
+        row.append(name, detail);
+        list.append(row);
+      }
+      section.hidden = list.childElementCount === 0;
+    }
+
+    function renderChecks(manifest) {
+      const section = document.querySelector("#checks");
+      const list = document.querySelector("#check-list");
+      list.replaceChildren();
+      const results = manifest && manifest.checks_ran === true ? manifest.check_results : null;
+      if (!Array.isArray(results) || results.length === 0) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+      for (const item of results) {
+        const passed = item.passed === true;
+        const row = document.createElement("li");
+        row.className = passed ? "check pass" : "check fail";
+        const head = document.createElement("div");
+        head.className = "check-row";
+        const rule = document.createElement("span");
+        rule.className = "check-rule";
+        rule.textContent = item.rule || "";
+        const state = document.createElement("span");
+        state.className = "check-state";
+        state.textContent = passed ? "Passed" : "Failed";
+        head.append(rule, state);
+        row.append(head);
+        if (!passed && item.detail) {
+          const detail = document.createElement("p");
+          detail.className = "check-detail";
+          detail.textContent = item.detail;
+          row.append(detail);
+        }
+        list.append(row);
       }
     }
 
     function render(payload) {
       const manifest = payload.manifest;
-      document.querySelector("#summary").hidden = false;
-      document.querySelector("#volume").hidden = false;
+      const summary = document.querySelector("#summary");
       const pill = document.querySelector("#status-pill");
       const copy = document.querySelector("#status-copy");
+      const reason = document.querySelector("#reason");
+      summary.hidden = false;
+      document.querySelector("#week-shown").textContent = payload.week || weekInput.value.trim();
       if (!manifest) {
         pill.hidden = true;
         copy.textContent = "No run for this week yet.";
         copy.className = "status-copy empty";
-        document.querySelector("#facts").replaceChildren();
+        reason.hidden = true;
+        reason.textContent = "";
       } else {
         const status = manifest.status || "";
         pill.hidden = !status;
         pill.textContent = status;
-        pill.className = QUIET.has(status) ? "pill" : "pill warn";
+        pill.className = PROBLEM.has(status) ? "pill warn" : SETTLED.has(status) ? "pill neutral" : "pill";
         copy.textContent = STATUS_NOTE[status] || "";
         copy.className = "status-copy";
-        const facts = [
-          ["Reason", manifest.reason || "", "text"],
-          ["Window", manifest.window ? manifest.window.start + " – " + manifest.window.end : "", "text"],
-          ["Unclassified", manifest.unclassified_count == null ? "" : String(manifest.unclassified_count), "text"],
-          ["Document", manifest.doc_url || "", "link"],
-          ["Message", manifest.message_id || "", "mono"],
-          ["Authorization", manifest.authorization_url || "", "link"]
-        ];
-        const list = document.querySelector("#facts");
-        list.replaceChildren();
-        for (const [label, value, kind] of facts) {
-          if (!value) continue;
-          const row = document.createElement("div");
-          row.className = "fact";
-          const name = document.createElement("span");
-          name.className = "fact-label";
-          name.textContent = label;
-          const detail = document.createElement("span");
-          detail.className = "fact-value";
-          if (kind === "link") {
-            const link = document.createElement("a");
-            link.href = value;
-            link.textContent = value;
-            link.target = "_blank";
-            link.rel = "noreferrer";
-            detail.append(link);
-          } else if (kind === "mono") {
-            const code = document.createElement("span");
-            code.className = "mono";
-            code.textContent = value;
-            detail.append(code);
-          } else {
-            detail.textContent = value;
-          }
-          row.append(name, detail);
-          list.append(row);
-        }
+        reason.hidden = !manifest.reason;
+        reason.textContent = manifest.reason || "";
       }
+      renderNext(manifest);
+      renderChecks(manifest);
+      renderFacts(manifest);
+      const showReviews = Boolean(manifest) || Number(payload.kept_count) > 0;
+      document.querySelector("#volume").hidden = !showReviews;
       document.querySelector("#kept").textContent = payload.kept_count + " reviews kept";
       const ratings = payload.ratings || {};
       const max = Math.max(1, ...Object.values(ratings).map(Number));
@@ -383,8 +569,12 @@
       renderActions(payload);
       const noteSection = document.querySelector("#note");
       const text = payload.note || "";
+      const docLink = document.querySelector("#doc-link");
+      const docUrl = manifest && manifest.doc_url || "";
       noteSection.hidden = !text;
       document.querySelector("#note-text").textContent = text;
+      docLink.hidden = !docUrl;
+      if (docUrl) docLink.href = docUrl;
     }
 
     function renderThemes(payload) {
@@ -393,14 +583,24 @@
       const fromManifest = payload.manifest && payload.manifest.themes;
       const themes = (catalog && catalog.length ? catalog : fromManifest) || [];
       const top = new Set((payload.manifest && payload.manifest.top_theme_ids) || []);
+      const summaries = new Map();
+      const pulseThemes = payload.pulse && payload.pulse.themes;
+      if (Array.isArray(pulseThemes)) {
+        for (const theme of pulseThemes) {
+          if (theme && theme.summary) summaries.set(theme.id, theme.summary);
+        }
+      }
       section.hidden = themes.length === 0;
       const list = document.querySelector("#theme-list");
       list.replaceChildren();
       for (const theme of themes) {
         const item = document.createElement("li");
         item.className = "theme";
+        const row = document.createElement("div");
+        row.className = "theme-row";
         const name = document.createElement("span");
-        name.textContent = theme.name || theme.id;
+        name.className = "theme-name";
+        name.textContent = theme.name || theme.id || "";
         const meta = document.createElement("span");
         meta.className = "theme-meta";
         if (theme.review_count != null) {
@@ -408,13 +608,51 @@
           count.textContent = theme.review_count + " reviews";
           meta.append(count);
         }
+        if (typeof theme.average_rating === "number") {
+          const rating = document.createElement("span");
+          rating.textContent = "Average " + theme.average_rating;
+          meta.append(rating);
+        }
         if (top.has(theme.id)) {
           const mark = document.createElement("span");
           mark.className = "top";
           mark.textContent = "Top";
           meta.append(mark);
         }
-        item.append(name, meta);
+        row.append(name, meta);
+        item.append(row);
+        if (theme.definition) {
+          const definition = document.createElement("p");
+          definition.className = "theme-extra";
+          definition.textContent = theme.definition;
+          item.append(definition);
+        }
+        const summary = summaries.get(theme.id);
+        if (summary) {
+          const line = document.createElement("p");
+          line.className = "theme-extra";
+          line.textContent = summary;
+          item.append(line);
+        }
+        list.append(item);
+      }
+      const appreciation = payload.catalog && payload.catalog.general_appreciation;
+      if (appreciation && appreciation.review_count != null) {
+        section.hidden = false;
+        const item = document.createElement("li");
+        item.className = "theme";
+        const row = document.createElement("div");
+        row.className = "theme-row";
+        const name = document.createElement("span");
+        name.className = "theme-name";
+        name.textContent = appreciation.name || "General Appreciation";
+        const meta = document.createElement("span");
+        meta.className = "theme-meta";
+        const count = document.createElement("span");
+        count.textContent = appreciation.review_count + " reviews";
+        meta.append(count);
+        row.append(name, meta);
+        item.append(row);
         list.append(item);
       }
     }
@@ -435,12 +673,24 @@
         const star = document.createElement("span");
         star.className = "stars";
         star.textContent = stars(quote.rating);
-        const dot = document.createElement("span");
-        dot.textContent = "·";
-        const theme = document.createElement("span");
-        theme.className = "theme-id";
-        theme.textContent = quote.theme_id || "";
-        meta.append(star, dot, theme);
+        meta.append(star);
+        if (quote.store) {
+          const store = document.createElement("span");
+          store.textContent = quote.store;
+          meta.append(store);
+        }
+        if (quote.theme_id) {
+          const theme = document.createElement("span");
+          theme.className = "theme-id";
+          theme.textContent = quote.theme_id;
+          meta.append(theme);
+        }
+        if (quote.review_id) {
+          const review = document.createElement("span");
+          review.className = "theme-id";
+          review.textContent = quote.review_id;
+          meta.append(review);
+        }
         item.append(text, meta);
         list.append(item);
       }
@@ -456,6 +706,12 @@
         const item = document.createElement("li");
         item.className = "action";
         item.textContent = action.text || "";
+        if (action.theme_id) {
+          const theme = document.createElement("span");
+          theme.className = "action-theme";
+          theme.textContent = action.theme_id;
+          item.append(theme);
+        }
         list.append(item);
       }
     }
@@ -488,29 +744,40 @@
     document.querySelector("#controls").addEventListener("submit", async (event) => {
       event.preventDefault();
       const week = weekInput.value.trim();
-      message.textContent = "";
+      setMessage("", false);
       setBusy(true);
       try {
         await readJson(await fetch("/api/weeks/" + encodeURIComponent(week) + "/run", { method: "POST" }));
         await show(week);
       } catch (error) {
         setBusy(false);
-        message.textContent = error.message;
+        activity.hidden = true;
+        setMessage(error.message, true);
       }
     });
 
     publishButton.addEventListener("click", async () => {
       const week = weekInput.value.trim();
-      message.textContent = "";
+      setMessage("", false);
       setBusy(true);
       try {
         await readJson(await fetch("/api/weeks/" + encodeURIComponent(week) + "/publish", { method: "POST" }));
         await show(week);
-        message.textContent = "Published the saved note.";
+        setMessage("Published the saved note.", false);
       } catch (error) {
         setBusy(false);
-        message.textContent = error.message;
+        activity.hidden = true;
+        setMessage(error.message, true);
       }
+    });
+
+    weekInput.addEventListener("change", () => {
+      const week = weekInput.value.trim();
+      if (!week) return;
+      setMessage("", false);
+      show(week).catch((error) => {
+        setMessage(error.message, true);
+      });
     });
 
     async function boot() {
@@ -529,7 +796,7 @@
     }
 
     boot().catch((error) => {
-      message.textContent = error.message;
+      setMessage(error.message, true);
     });
   </script>
 </body>
