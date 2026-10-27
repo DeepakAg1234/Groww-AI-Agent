@@ -154,7 +154,21 @@
       letter-spacing: -0.03em;
       line-height: 1.1;
     }
+    .run-name { margin: 0 0 6px; color: var(--muted); font-size: 14px; font-weight: 600; }
     .window { margin: 8px 0 0; color: var(--muted); }
+    .week-span {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(0, 1fr);
+      gap: 4px;
+      max-width: 560px;
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .week-span li { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+    .week-bar { display: block; width: 100%; height: 10px; border-radius: 99px; background: var(--groww); }
+    .week-label { color: var(--muted); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
     .status-line {
       display: flex;
       flex-wrap: wrap;
@@ -203,6 +217,17 @@
     .of-five { display: none; margin-left: 4px; font-size: 18px; font-weight: 500; color: var(--muted); }
     .has-rating .of-five { display: inline; }
     .caption { margin: 0; color: var(--muted); font-size: 13px; }
+    .rating-note {
+      margin: 20px 0 0;
+      padding: 14px 16px;
+      max-width: 68ch;
+      border-radius: 10px;
+      background: #F8EBE3;
+      color: #7C2D12;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
     .stack {
       display: flex;
       gap: 2px;
@@ -387,8 +412,10 @@
     </aside>
     <main>
       <header>
+        <p id="run-name" class="run-name" hidden></p>
         <h1 id="week-shown">Weekly pulse</h1>
         <p id="window-line" class="window" hidden></p>
+        <ol id="week-span" class="week-span" hidden></ol>
         <div class="status-line">
           <span id="status-pill" class="pill" hidden></span>
           <p id="status-copy">Read a saved week, or run the pipeline and publish the note.</p>
@@ -403,9 +430,9 @@
           <p id="kept-caption" class="caption">reviews kept</p>
         </div>
         <div class="measure">
-          <p id="blended-wrap" class="figure"><span id="blended">—</span><span class="of-five"> / 5</span></p>
+          <p id="blended-wrap" class="figure"><span id="blended">—</span></p>
           <div class="slot"></div>
-          <p id="blended-caption" class="caption">average of kept reviews</p>
+          <p id="blended-caption" class="caption">average of issue reviews</p>
         </div>
         <div class="measure">
           <p id="low-figure" class="figure">—</p>
@@ -418,6 +445,7 @@
           <p id="words-caption" class="caption">words, 280 is the limit</p>
         </div>
       </section>
+      <p id="rating-note" class="rating-note" hidden></p>
 
       <div class="split">
         <section id="themes" hidden>
@@ -510,16 +538,61 @@
       return Number(value).toLocaleString("en-US");
     }
 
-    function formatDay(iso) {
+    function parseIsoDate(iso) {
       const parts = String(iso).split("-").map(Number);
-      if (parts.length < 3 || parts.some((part) => Number.isNaN(part))) return String(iso);
-      const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+      if (parts.length < 3 || parts.some((part) => Number.isNaN(part))) return null;
+      return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    }
+
+    function formatDay(iso) {
+      const date = parseIsoDate(iso);
+      if (!date) return String(iso);
       return date.toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
         year: "numeric",
         timeZone: "UTC"
       });
+    }
+
+    function isoWeekNumber(date) {
+      const copy = new Date(date.getTime());
+      const day = copy.getUTCDay() || 7;
+      copy.setUTCDate(copy.getUTCDate() + 4 - day);
+      const yearStart = new Date(Date.UTC(copy.getUTCFullYear(), 0, 1));
+      return Math.ceil((((copy - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function coveredWeeks(startIso, endIso) {
+      const start = parseIsoDate(startIso);
+      const end = parseIsoDate(endIso);
+      if (!start || !end || end < start) return [];
+      const weeks = [];
+      for (let cursor = new Date(start.getTime()); cursor <= end && weeks.length < 16; cursor.setUTCDate(cursor.getUTCDate() + 7)) {
+        weeks.push(isoWeekNumber(cursor));
+      }
+      return weeks;
+    }
+
+    function issueRating(payload) {
+      const catalog = payload.catalog && payload.catalog.themes;
+      const themes = Array.isArray(catalog) && catalog.length
+        ? catalog
+        : ((payload.manifest && payload.manifest.themes) || []);
+      let sum = 0;
+      let count = 0;
+      let rated = 0;
+      for (const theme of themes) {
+        if (!theme) continue;
+        const reviews = Number(theme.review_count) || 0;
+        if (!reviews) continue;
+        count += reviews;
+        if (typeof theme.average_rating === "number") {
+          sum += theme.average_rating * reviews;
+          rated += reviews;
+        }
+      }
+      return { count, average: rated ? sum / rated : null };
     }
 
     function ruleLabel(rule) {
@@ -705,10 +778,35 @@
         counted += count;
         if (star === "1" || star === "2") low += count;
       }
+      const issues = issueRating(payload);
       const blended = document.querySelector("#blended");
-      const blendedWrap = document.querySelector("#blended-wrap");
-      blended.textContent = counted ? (weighted / counted).toFixed(2) : "—";
-      blendedWrap.classList.toggle("has-rating", counted > 0);
+      const blendedCaption = document.querySelector("#blended-caption");
+      const ratingNote = document.querySelector("#rating-note");
+      const issueAverage = issues.average;
+      const keptAverage = counted ? weighted / counted : null;
+      const shownAverage = issueAverage != null ? issueAverage : keptAverage;
+      blended.textContent = shownAverage != null ? shownAverage.toFixed(2) : "—";
+      blendedCaption.textContent = issueAverage != null
+        ? "average of issue reviews"
+        : "average of kept reviews";
+      if (shownAverage == null) {
+        ratingNote.hidden = true;
+        ratingNote.textContent = "";
+      } else if (issueAverage != null) {
+        const praise = manifest && Number(manifest.general_appreciation_count);
+        const sentence = praise
+          ? formatNumber(praise) + (praise === 1 ? " review that only praises the app is left out." : " reviews that only praise the app are left out.")
+          : "Praise with no product issue is left out.";
+        ratingNote.hidden = false;
+        ratingNote.textContent = "Not the Play Store rating. " + shownAverage.toFixed(2)
+          + " is the average of " + formatNumber(issues.count)
+          + (issues.count === 1 ? " review that describes a product issue. " : " reviews that describe a product issue. ")
+          + sentence;
+      } else {
+        ratingNote.hidden = false;
+        ratingNote.textContent = "Not the Play Store rating. " + shownAverage.toFixed(2)
+          + " is the average of reviews kept in this run.";
+      }
       const lowFigure = document.querySelector("#low-figure");
       const splitCaption = document.querySelector("#split-caption");
       const split = document.querySelector("#ratings");
@@ -716,7 +814,7 @@
       if (counted) {
         const lowPct = Math.round((low / counted) * 100);
         lowFigure.textContent = lowPct + "%";
-        splitCaption.textContent = "are 1 or 2 stars";
+        splitCaption.textContent = "of kept reviews are 1 or 2 stars";
         for (const star of ["1", "2", "3", "4", "5"]) {
           const count = counts[star];
           if (!count) continue;
@@ -744,21 +842,54 @@
       wordsCaption.classList.toggle("problem", words > WORD_LIMIT);
     }
 
+    function renderWindow(payload) {
+      const manifest = payload.manifest;
+      const week = payload.week || weekInput.value.trim();
+      const title = document.querySelector("#week-shown");
+      const runName = document.querySelector("#run-name");
+      const windowLine = document.querySelector("#window-line");
+      const span = document.querySelector("#week-span");
+      const windowValue = manifest && manifest.window;
+      span.replaceChildren();
+      if (!(windowValue && windowValue.start && windowValue.end)) {
+        title.textContent = week || "Weekly pulse";
+        runName.hidden = true;
+        runName.textContent = "";
+        windowLine.hidden = true;
+        windowLine.textContent = "";
+        span.hidden = true;
+        return;
+      }
+      const weeks = coveredWeeks(windowValue.start, windowValue.end);
+      const count = weeks.length;
+      title.textContent = count
+        ? count + (count === 1 ? " week of reviews" : " weeks of reviews")
+        : (week || "Weekly pulse");
+      runName.hidden = !week;
+      runName.textContent = week ? "Run " + week : "";
+      windowLine.hidden = false;
+      windowLine.textContent = formatDay(windowValue.start) + " – " + formatDay(windowValue.end);
+      span.hidden = count === 0;
+      if (!count) return;
+      span.setAttribute("aria-label", count + " weeks covered, " + windowLine.textContent);
+      for (const number of weeks) {
+        const item = document.createElement("li");
+        const bar = document.createElement("span");
+        bar.className = "week-bar";
+        const label = document.createElement("span");
+        label.className = "week-label";
+        label.textContent = "W" + number;
+        item.append(bar, label);
+        span.append(item);
+      }
+    }
+
     function render(payload) {
       const manifest = payload.manifest;
       const pill = document.querySelector("#status-pill");
       const copy = document.querySelector("#status-copy");
       const reason = document.querySelector("#reason");
-      const windowLine = document.querySelector("#window-line");
-      document.querySelector("#week-shown").textContent = payload.week || weekInput.value.trim() || "Weekly pulse";
-      const windowValue = manifest && manifest.window;
-      if (windowValue && windowValue.start && windowValue.end) {
-        windowLine.hidden = false;
-        windowLine.textContent = formatDay(windowValue.start) + " – " + formatDay(windowValue.end);
-      } else {
-        windowLine.hidden = true;
-        windowLine.textContent = "";
-      }
+      renderWindow(payload);
       if (!manifest) {
         pill.hidden = true;
         copy.textContent = "No run for this week yet.";
